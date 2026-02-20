@@ -207,11 +207,7 @@ if(sediments==True):
     # thickness of lower crust (m)
     thickness_lower_crust = 10 * 1.0e3
     #Thickness of non cratonic lithosphere
-    thickness_mlit = 80 * 1.0e3
-    #thickness of cratonic lihosphere (upper)
-    thickness_mlit_crat_up = 80 * 1.0e3
-    #thickness of cratonic lithosphere (bottom)
-    thickness_mlit_crat_bot = 125 * 1.0e3
+    thickness_mlit = 120 * 1.0e3
 else:
     # thickness of sticky air layer (m)
     thickness_sa = 40 * 1.0e3
@@ -220,25 +216,15 @@ else:
     # thickness of lower crust (m)
     thickness_lower_crust = 10 * 1.0e3
     #Thickness of non cratonic lithosphere
-    thickness_mlit = 80 * 1.0e3
-    #thickness of cratonic lihosphere (upper)
-    thickness_mlit_crat_up = 80 * 1.0e3
-    #thickness of cratonic lithosphere (bottom)
-    thickness_mlit_crat_bot = 125 * 1.0e3
+    thickness_mlit = 120 * 1.0e3
 
 # total thickness of lithosphere (m)
 if(sediments==True):
     thickness_litho = thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_mlit #125 km - reference is the non-cratonic lithosphere
-    thickness_crat_up = thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_mlit_crat_up
-    thickness_crat_bot = thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_mlit_crat_up + thickness_mlit_crat_bot
     thickness_astnc = Lz - (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_mlit)
-    thickness_astc = Lz - (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_mlit_crat_up + thickness_mlit_crat_bot)
 else:
     thickness_litho = thickness_upper_crust + thickness_lower_crust + thickness_mlit #125 km - reference is the non-cratonic lithosphere
-    thickness_crat_up = thickness_upper_crust + thickness_lower_crust + thickness_mlit_crat_up
-    thickness_crat_bot = thickness_upper_crust + thickness_lower_crust + thickness_mlit_crat_up + thickness_mlit_crat_bot
     thickness_astnc = Lz - (thickness_sa + thickness_upper_crust + thickness_lower_crust + thickness_mlit)
-    thickness_astc = Lz - (thickness_sa + thickness_upper_crust + thickness_lower_crust + thickness_mlit_crat_up + thickness_mlit_crat_bot)
 
 # seed depth bellow base of lower crust (m)
 seed_depth = 3 * 1.0e3 #9 * 1.0e3 #original
@@ -249,9 +235,7 @@ X, Z = np.meshgrid(x, z)
 
 if(sediments==True):
     interfaces = {
-        "litho_crat_bot": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_mlit_crat_up + thickness_mlit_crat_bot), #lower portion - this interface starts from the base of cratonic region
-        "litho_crat_up": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_mlit_crat_up), #upper portion - this interface starts from the base of cratonic region
-        "litho_nc": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust), #non cratonic lithosphere - this interface starts from the base of lower crust
+        "litho_nc": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust+thickness_mlit), #non cratonic lithosphere - this interface starts from the base of lower crust
         "lower_crust": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust),
         "seed_base": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust - seed_depth),
         "seed_top": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust - seed_depth),
@@ -262,9 +246,7 @@ if(sediments==True):
         }
 else:
     interfaces = {
-        "litho_crat_bot": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust + thickness_mlit_crat_up + thickness_mlit_crat_bot), #lower portion - this interface starts from the base of cratonic region
-        "litho_crat_up": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust + thickness_mlit_crat_up), #upper portion - this interface starts from the base of cratonic region
-        "litho_nc": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust), #non cratonic lithosphere - this interface starts from the base of lower crust
+        "litho_nc": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust+thickness_mlit), #non cratonic lithosphere - this interface starts from the base of lower crust
         "lower_crust": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust),
         "seed_base": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust - seed_depth),
         "seed_top": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust - seed_depth),
@@ -272,36 +254,6 @@ else:
         "air": np.ones(Nx) * (thickness_sa),
         }
 
-#Building non cratonic lithosphere
-dx = Lx/(Nx-1)
-L_nc = 800.0e3 #m
-N_nc = int(L_nc//dx)
-n_retreat = 0 #points in x direction to retreat the left protion of cratonic lithosphere
-L_retreat = n_retreat * dx #length of retreat
-
-if(assimetric_cratons == True):
-    assimetry_factor = 3
-else:
-    assimetry_factor = 1
-
-thickening = thickness_mlit #m
-if(sediments==True):
-    interfaces['litho_nc'][Nx//2 - assimetry_factor*N_nc//2 - n_retreat: Nx//2 + N_nc//2] = thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickening
-else:
-    interfaces['litho_nc'][Nx//2 - assimetry_factor*N_nc//2 - n_retreat: Nx//2 + N_nc//2] = thickness_sa + thickness_upper_crust + thickness_lower_crust + thickening
-    
-#Building lower craton
-L_thinning = L_nc
-N_thinning = N_nc
-
-# thinning = thickness_mlit_crat_up + thickness_mlit_crat_bot #reach the base of the lower crust
-thinning = thickness_mlit_crat_bot #reach the base of the lower crust
-
-interfaces['litho_crat_bot'][Nx//2 - assimetry_factor*N_thinning//2 - n_retreat : Nx//2 + N_thinning//2] = thickness_sa + thickness_crat_bot - thinning
-
-#Building upper craton
-thinning = 0.0#thickness_mlit_crat_up
-interfaces['litho_crat_up'][Nx//2 - assimetry_factor*N_thinning//2: Nx//2 + N_thinning//2] = thickness_sa + thickness_crat_up - thinning
 
 #Building seed
 # seed thickness (m)
@@ -335,8 +287,6 @@ C_upper_crust = 1.0
 C_lower_crust = 100.0
 C_seed = 0.1
 C_mlit = 1.0
-C_mlit_uc = 1.0
-C_mlit_lc = 1.0
 C_ast = 1.0
 
 #density (kg/m3)
@@ -348,8 +298,6 @@ rho_upper_crust = 2700.0
 rho_lower_crust = 2800.0
 rho_seed = 2800.0
 rho_mlit = 3330.0 #3354.0 #phanerozoic
-rho_mlit_uc = 3330.0 #3310.0 #archean
-rho_mlit_lc = 3330.0 #proterozoic
 rho_ast = 3378.0
 
 #radiogenic heat production (W/kg)
@@ -366,13 +314,9 @@ H_seed = 0.2e-6 / 2800.0
 # radiogenic_heat_mlit = True
 radiogenic_heat_mlit = False
 if(radiogenic_heat_mlit):
-    H_mlit = 9.0e-12               
-    H_mlit_uc = 9.0e-12
-    H_mlit_lc = 9.0e-12
+    H_mlit = 9.0e-12
 else:
-    H_mlit = 0.0 #9.0e-12               
-    H_mlit_uc = 0.0 #9.0e-12
-    H_mlit_lc = 0.0 #9.0e-12
+    H_mlit = 0.0 #9.0e-12
 
 H_ast = 0.0 #Turccote book: 7.38e-12 #Default is 0.0
 
@@ -385,8 +329,6 @@ A_upper_crust = 8.574e-28
 A_lower_crust = 8.574e-28
 A_seed = 8.574e-28
 A_mlit = 2.4168e-15
-A_mlit_uc = 2.4168e-15
-A_mlit_lc = 2.4168e-15
 A_ast = 1.393e-14
 
 #Power law exponent
@@ -398,8 +340,6 @@ n_upper_crust = 4.0
 n_lower_crust = 4.0
 n_seed = 4.0
 n_mlit = 3.5
-n_mlit_uc = 3.5
-n_mlit_lc = 3.5
 n_ast = 3.0
 
 #Activation energy (J/mol)
@@ -411,8 +351,6 @@ Q_upper_crust = 222.0e3
 Q_lower_crust = 222.0e3
 Q_seed = 222.0e3
 Q_mlit = 540.0e3
-Q_mlit_uc = 540.0e3
-Q_mlit_lc = 540.0e3
 Q_ast = 429.0e3
 
 #Activation volume (m3/mol)
@@ -424,31 +362,29 @@ V_upper_crust = 0.0
 V_lower_crust = 0.0
 V_seed = 0.0
 V_mlit = 25.0e-6
-V_mlit_uc = 25.0e-6
-V_mlit_lc = 25.0e-6
 V_ast = 15.0e-6
 
 with open("interfaces.txt", "w") as f:
     rheology_mlit = 'dry' #rheology of lithospheric mantle: dry olivine or wet olivine
     if(sediments==True):
         layer_properties = f"""
-            C   {C_ast}   {C_mlit_lc}   {C_mlit_uc}   {C_mlit}   {C_lower_crust}   {C_seed}   {C_lower_crust}   {C_upper_crust}   {C_dec}   {C_sed}   {C_air}
-            rho {rho_ast} {rho_mlit_lc} {rho_mlit_uc} {rho_mlit} {rho_lower_crust} {rho_seed} {rho_lower_crust} {rho_upper_crust} {rho_dec} {rho_sed} {rho_air}
-            H   {H_ast}   {H_mlit_lc}   {H_mlit_uc}   {H_mlit}   {H_lower_crust}   {H_seed}   {H_lower_crust}   {H_upper_crust}   {H_dec}   {H_sed}   {H_air}
-            A   {A_ast}   {A_mlit_lc}   {A_mlit_uc}   {A_mlit}   {A_lower_crust}   {A_seed}   {A_lower_crust}   {A_upper_crust}   {A_dec}   {A_sed}   {A_air}
-            n   {n_ast}   {n_mlit_lc}   {n_mlit_uc}   {n_mlit}   {n_lower_crust}   {n_seed}   {n_lower_crust}   {n_upper_crust}   {n_dec}   {n_sed}   {n_air}
-            Q   {Q_ast}   {Q_mlit_lc}   {Q_mlit_uc}   {Q_mlit}   {Q_lower_crust}   {Q_seed}   {Q_lower_crust}   {Q_upper_crust}   {Q_dec}   {Q_sed}   {Q_air}
-            V   {V_ast}   {V_mlit_lc}   {V_mlit_uc}   {V_mlit}   {V_lower_crust}   {V_seed}   {V_lower_crust}   {V_upper_crust}   {V_dec}   {V_sed}   {V_air}
+            C   {C_ast}   {C_mlit}   {C_lower_crust}   {C_seed}   {C_lower_crust}   {C_upper_crust}   {C_dec}   {C_sed}   {C_air}
+            rho {rho_ast} {rho_mlit} {rho_lower_crust} {rho_seed} {rho_lower_crust} {rho_upper_crust} {rho_dec} {rho_sed} {rho_air}
+            H   {H_ast}   {H_mlit}   {H_lower_crust}   {H_seed}   {H_lower_crust}   {H_upper_crust}   {H_dec}   {H_sed}   {H_air}
+            A   {A_ast}   {A_mlit}   {A_lower_crust}   {A_seed}   {A_lower_crust}   {A_upper_crust}   {A_dec}   {A_sed}   {A_air}
+            n   {n_ast}   {n_mlit}   {n_lower_crust}   {n_seed}   {n_lower_crust}   {n_upper_crust}   {n_dec}   {n_sed}   {n_air}
+            Q   {Q_ast}   {Q_mlit}   {Q_lower_crust}   {Q_seed}   {Q_lower_crust}   {Q_upper_crust}   {Q_dec}   {Q_sed}   {Q_air}
+            V   {V_ast}   {V_mlit}   {V_lower_crust}   {V_seed}   {V_lower_crust}   {V_upper_crust}   {V_dec}   {V_sed}   {V_air}
         """
     else:
         layer_properties = f"""
-            C   {C_ast}   {C_mlit_lc}   {C_mlit_uc}   {C_mlit}   {C_lower_crust}   {C_seed}   {C_lower_crust}   {C_upper_crust}   {C_air}
-            rho {rho_ast} {rho_mlit_lc} {rho_mlit_uc} {rho_mlit} {rho_lower_crust} {rho_seed} {rho_lower_crust} {rho_upper_crust} {rho_air}
-            H   {H_ast}   {H_mlit_lc}   {H_mlit_uc}   {H_mlit}   {H_lower_crust}   {H_seed}   {H_lower_crust}   {H_upper_crust}   {H_air}
-            A   {A_ast}   {A_mlit_lc}   {A_mlit_uc}   {A_mlit}   {A_lower_crust}   {A_seed}   {A_lower_crust}   {A_upper_crust}   {A_air}
-            n   {n_ast}   {n_mlit_lc}   {n_mlit_uc}   {n_mlit}   {n_lower_crust}   {n_seed}   {n_lower_crust}   {n_upper_crust}   {n_air}
-            Q   {Q_ast}   {Q_mlit_lc}   {Q_mlit_uc}   {Q_mlit}   {Q_lower_crust}   {Q_seed}   {Q_lower_crust}   {Q_upper_crust}   {Q_air}
-            V   {V_ast}   {V_mlit_lc}   {V_mlit_uc}   {V_mlit}   {V_lower_crust}   {V_seed}   {V_lower_crust}   {V_upper_crust}   {V_air}
+            C   {C_ast}   {C_mlit}   {C_lower_crust}   {C_seed}   {C_lower_crust}   {C_upper_crust}   {C_air}
+            rho {rho_ast} {rho_mlit} {rho_lower_crust} {rho_seed} {rho_lower_crust} {rho_upper_crust} {rho_air}
+            H   {H_ast}   {H_mlit}   {H_lower_crust}   {H_seed}   {H_lower_crust}   {H_upper_crust}   {H_air}
+            A   {A_ast}   {A_mlit}   {A_lower_crust}   {A_seed}   {A_lower_crust}   {A_upper_crust}   {A_air}
+            n   {n_ast}   {n_mlit}   {n_lower_crust}   {n_seed}   {n_lower_crust}   {n_upper_crust}   {n_air}
+            Q   {Q_ast}   {Q_mlit}   {Q_lower_crust}   {Q_seed}   {Q_lower_crust}   {Q_upper_crust}   {Q_air}
+            V   {V_ast}   {V_mlit}   {V_lower_crust}   {V_seed}   {V_lower_crust}   {V_upper_crust}   {V_air}
         """
 
     for line in layer_properties.split("\n"):
@@ -492,31 +428,30 @@ else:
 if(variable_bcv == True):
     #first rifting phase
     # dt_rifting1 = 8.0
+    dt_rifting1 = 20.0
     # dt_rifting1 = 25.0
-    dt_rifting1 = 50.0
+    # dt_rifting1 = 50.0
     # dt_rifting1 = 100.0
     
     ti_quiescence1 = 0 + dt_rifting1 #Myr
 
     #Time of quiescence1 to and start of convergence to close the ocean basin
-    dt_quiescence1 = 30 #Myr
+    dt_quiescence1 = 15 #Myr
     tf_quiescence1 = ti_quiescence1 + dt_quiescence1
 
     #Closing the ocean basin over dt_rifting1 Myr and starting orogeny to begin the second quiescence phase
-    dt_orogeny = 40.0 #Myr
+    dt_orogeny = 30.0 #Myr
     ti_quiescence2 = tf_quiescence1 + dt_rifting1 + dt_orogeny #Myr
 
-    #second rifting phase to open a new ocean basin
-    dt_quiescence2 = 60.0 #Myr
+    #second quiescence phase after orogeny
+    dt_quiescence2 = 40.0 #Myr
     tf_quiescence2 = ti_quiescence2 + dt_quiescence2
 
-    dt_rifting2 = 70.0 #Myr
-    time_max = (tf_quiescence2 + dt_rifting2)*1.0e6 #Myr to years
+    time_max = (tf_quiescence2)*1.0e6 #Myr to years
 
     # time_max = (tf_quiescence + dt_rifting2)*1.0e6 #210.0e6
 else:
-    # time_max = 435.0e6
-    time_max = 500.0e6
+    time_max = 120.0e6
 
 dt_max                           = 10.0e3 #default
 step_print                       = 200 #25
@@ -692,26 +627,21 @@ preset = False
 
 if(preset == False):
     T = 1300 * (z - thickness_sa) / (thickness_litho)  # Temperature
-    T_cratonic = 1300 * (z - thickness_sa) / (thickness_crat_bot)
     
     # T = 1300 * (z - thickness_sa) / (130*1.0E3)  # Temperature of 1300 isotherm bellow the lithosphere
 
     ccapacity = 1250*1.0 #937.5=75% #J/kg/K? #DEFAULT
     
     # TP = 1262 #mantle potential temperature
-    # TP = 1350
+    TP = 1350
     # TP = 1400
-    TP = 1450
+    # TP = 1450
 
     Ta = (TP / np.exp(-10 * 3.28e-5 * (z - thickness_sa) / ccapacity)) + DeltaT #Temperature profile for asthenosphere
 
     T[T < 0.0] = 0.0 #forcing negative temperatures to 0
     cond1 = Ta<T #VICTOR - selecting where asthenosphere temperature is lower than lithospheric temperature
     T[T > Ta] = Ta[T > Ta] #apply the temperature of asthenosphere (Ta) where temperature (T) is greater than Ta
-
-    T_cratonic[T_cratonic < 0.0] = 0.0 #forcing negative temperatures to 0
-    cond1_cratonic = Ta<T_cratonic #VICTOR
-    T_cratonic[T_cratonic > Ta] = Ta[T_cratonic > Ta] #apply the temperature of asthenosphere Ta where temperature T is greater than Ta
 
     # kappa = 0.75*1.0e-6 #thermal diffusivity
     kappa = 1.0e-6 #thermal diffusivity
@@ -732,14 +662,12 @@ if(preset == False):
 
     #Conductive model
     Taux = np.copy(T)
-    Taux_cratonic = np.copy(T_cratonic)
 
     t = 0
     dt = 5000
     dt_sec = dt * 365 * 24 * 3600
     # cond = (z > thickness_sa + thickness_litho) | (T == 0)  # (T > 1300) | (T == 0) #OLD
     cond = cond1 | (T == 0)  # (T > 1300) | (T == 0) #VICTOR
-    cond_cratonic = cond1_cratonic | (T_cratonic == 0)
     dz = Lz / (Nz - 1)
     
     while t < 2000.0e6:
@@ -750,25 +678,9 @@ if(preset == False):
         )
         T[cond] = Taux[cond]
 
-        #cratonic region
-        T_cratonic[1:-1] += (
-            kappa * dt_sec * ((T_cratonic[2:] + T_cratonic[:-2] - 2 * T_cratonic[1:-1]) / dz ** 2)
-            + H[1:-1] * dt_sec / ccapacity
-        )
-        T_cratonic[cond_cratonic] = Taux_cratonic[cond_cratonic]
-
         t = t + dt
 
     T = np.ones_like(X) * T[:, None] #(Nz, Nx)
-    T_cratonic = np.ones_like(X) * T_cratonic[:, None] #(Nz, Nx)
-    
-    xcenter = Lx/2
-    xregion_cratonic = (X <= xcenter - assimetry_factor*L_nc/2 - L_retreat) | (X >= xcenter + L_nc/2)
-    xregion_non_cratonic = (X > xcenter - assimetry_factor*L_nc/2) & (X < xcenter + L_nc/2)
-
-    #Applying the cratonic temperature profile in initial temperature field (T)
-    T[xregion_cratonic] = T_cratonic[xregion_cratonic]
-    # print('shape T: ', np.shape(T))
 
     # Save the initial temperature file
     np.savetxt("input_temperature_0.txt", np.reshape(T, (Nx * Nz)), header="T1\nT2\nT3\nT4")
@@ -785,7 +697,7 @@ if(velocity_from_ascii == True):
     # 1 cm/year
     vL = (0.5*velocity/100) / (365 * 24 * 3600)  # m/s
 
-    h_v_const = thickness_crat_bot + 20.0e3  #thickness with constant velocity 
+    h_v_const = thickness_mlit + 20.0e3  #thickness with constant velocity 
     ha = Lz - thickness_sa - h_v_const  # difference
 
     vR = 2 * vL * (h_v_const + fac_air + ha) / ha  # this is to ensure integral equals zero
@@ -931,8 +843,6 @@ color_dec = (137./cr,81./cr,151./cr)
 color_uc = (228./cr,156./cr,124./cr)
 color_lc = (240./cr,209./cr,188./cr)
 color_lit = (155./cr,194./cr,155./cr)
-color_mlit_uc = (180. / cr, 194. / cr, 162. / cr)
-color_mlit_lc = (180. / cr, 194. / cr, 162. / cr)#(155. / cr, 194. / cr, 155. / cr)
 color_ast = (207./cr,226./cr,205./cr)
 
 if(sediments==True):
@@ -943,9 +853,7 @@ if(sediments==True):
         'seed_top': color_lc,
         'seed_base': color_lc,
         'lower_crust': color_lit,
-        'litho_nc': color_mlit_uc,
-        'litho_crat_up': color_mlit_lc,
-        'litho_crat_bot': color_ast,
+        'litho_nc': color_ast,
     }
 else:
     colors = {'air': color_uc,
@@ -953,16 +861,12 @@ else:
               'seed_top': color_lc,
               'seed_base': color_lc,
               'lower_crust': color_lit,
-              'litho_nc': color_mlit_uc,
-              'litho_crat_up': color_mlit_lc,
-              'litho_crat_bot': color_ast,}
+              'litho_nc': color_ast,}
     labels = {
         'air': 'Upper crust',
         'upper_crust': 'Lower crust',
-        'lower_crust': 'Non cratonic\nlithospheric mantle',
-        'litho_nc': 'Cratonic\nlithospheric mantle',#'Upper cratonic lithospheric mantle',
-        'litho_crat_up': 'Cratonic\nlithospheric mantle',#'Lower cratonic lithospheric mantle',
-        'litho_crat_bot': 'Asthenosphere',
+        'lower_crust': 'Lithospheric mantle',
+        'litho_nc': 'Asthenosphere',#'Upper cratonic lithospheric mantle',
     }
 
 for interface in list(interfaces.items())[::-1]:
@@ -982,6 +886,7 @@ for interface in list(interfaces.items())[::-1]:
 
     axs.fill_between(x/1000, -layer/1000+thickness_sa/1000, -Lz/1000+thickness_sa/1000, color=colors[label])#, label=labels[label])
 
+dx = Lx/(Nx-1)
 axs.set_xlim(0, Lx/1000)
 axs.set_xticks([])
 axs.set_yticks([])
@@ -998,8 +903,6 @@ colors_legend = {'air': color_air,
                  'seed_base': color_lc,
                  'lower_crust': color_lc,
                  'litho_nc': color_lit,
-                 'litho_crat_up': color_mlit_uc,
-                #  'litho_crat_bot': color_mlit_lc,
                  'asthenosphere': color_ast,}
 
 if(sediments==True):
@@ -1009,21 +912,15 @@ if(sediments==True):
         'decolement': f"Decolement\n{C_dec:.1f} x wet quartz\n"+fr"$\rho$ = {rho_dec:.0f} kg/m³"+f"\nh={thickness_decolement/1.0E3:.0f} km",
         'upper_crust': f"Upper crust\n{C_upper_crust:.0f} x wet quartz\n"+fr"$\rho$ = {rho_upper_crust:.0f} kg/m³"+f"\nh={thickness_upper_crust/1.0E3:.0f} km",
         'lower_crust': f"Lower crust\n{C_lower_crust:.0f} x wet quartz\n"+fr"$\rho$ = {rho_lower_crust:.0f} kg/m³"+f"\nh={thickness_lower_crust/1.0E3:.0f} km",
-        'litho_nc': f"Non-cratonic\nlith. mantle\n{C_mlit:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit:.0f} kg/m³"+f"\nh={thickness_mlit/1.0E3:.0f} km",
-        'litho_crat_up': f"Cratonic\nlith. mantle\n{C_mlit_uc:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit_uc:.0f} kg/m³"+f"\nh={thickness_mlit_crat_up/1.0E3:.0f} km",
-        # 'litho_crat_up': f"Upper cratonic\nlith. mantle\n{C_mlit_uc:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit_uc:.0f} kg/m³"+f"\nh={thickness_mlit_crat_up/1.0E3:.0f} km",
-        # 'litho_crat_bot': f"Lower cratonic\nlith. mantle\n{C_mlit_lc:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit_lc:.0f} kg/m³"+f"\nh={thickness_mlit_crat_bot/1.0E3:.0f} km",
-        'asthenosphere': f"Asthenosphere\n{C_ast:.0f} x wet olivine\n"+fr"$\rho$ = {rho_ast:.0f} kg/m³"+f"\nh={thickness_astnc/1.0E3:.0f}-{thickness_astc/1.0E3:.0f} km"}
+        'litho_nc': f"Lithospheric\nmantle\n{C_mlit:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit:.0f} kg/m³"+f"\nh={thickness_mlit/1.0E3:.0f} km",
+        'asthenosphere': f"Asthenosphere\n{C_ast:.0f} x wet olivine\n"+fr"$\rho$ = {rho_ast:.0f} kg/m³"+f"\nh={thickness_astnc/1.0E3:.0f} km"}
 else:
     labels_legend = {
         'air': f"Sticky air\n{C_air:.0f} x air\n"+fr"$\rho$ = {rho_air:.0f} kg/m³"+f"\n$h$ = {thickness_sa/1.0E3:.0f} km",
         'upper_crust': f"Upper crust\n{C_upper_crust:.0f} x wet quartz\n"+fr"$\rho$ = {rho_upper_crust:.0f} kg/m³"+f"\n$h$ = {thickness_upper_crust/1.0E3:.0f} km",
         'lower_crust': f"Lower crust\n{C_lower_crust:.0f} x wet quartz\n"+fr"$\rho$ = {rho_lower_crust:.0f} kg/m³"+f"\n$h$ = {thickness_lower_crust/1.0E3:.0f} km",
-        'litho_nc': f"Non-cratonic\nlith. mantle\n{C_mlit:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit:.0f} kg/m³"+f"\n$h$ = {thickness_mlit/1.0E3:.0f} km",
-        'litho_crat_up': f"Cratonic\nlith. mantle\n{C_mlit_uc:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit_uc:.0f} kg/m³"+f"\n$h$ = {thickness_mlit_crat_up/1.0E3:.0f} km",
-        # 'litho_crat_up': f"Upper cratonic\nlith. mantle\n{C_mlit_uc:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit_uc:.0f} kg/m³"+f"\n$h$ = {thickness_mlit_crat_up/1.0E3:.0f} km",
-        # 'litho_crat_bot': f"Lower cratonic\nlith. mantle\n{C_mlit_lc:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit_lc:.0f} kg/m³"+f"\n$h$ = {thickness_mlit_crat_bot/1.0E3:.0f} km",
-        'asthenosphere': f"Asthenosphere\n{C_ast:.0f} x wet olivine\n"+fr"$\rho$ = {rho_ast:.0f} kg/m³"+f"\n$h$ = {thickness_astnc/1.0E3:.0f}-{thickness_astc/1.0E3:.0f} km"}
+        'litho_nc': f"Lithospheric\nmantle\n{C_mlit:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit:.0f} kg/m³"+f"\n$h$ = {thickness_mlit/1.0E3:.0f} km",
+        'asthenosphere': f"Asthenosphere\n{C_ast:.0f} x wet olivine\n"+fr"$\rho$ = {rho_ast:.0f} kg/m³"+f"\n$h$ = {thickness_astnc/1.0E3:.0f} km"}
 
 legend_elements = []
 for key in labels_legend.keys():
@@ -1058,9 +955,8 @@ axt = axs.inset_axes((0.205,
                       0,
                       0.18,
                       1))
-# axt.plot(temp_z[:, 0], -(z - t_sa) / 1.0e3, "-r")
-axt.plot(T[:, 0], (-z + thickness_sa) / 1.0e3, "-k", label=f"Cratonic")#label=r'T$_{\mathrm{cratonic}}$')
-axt.plot(T[:, idx_center], (-z + thickness_sa) / 1.0e3, "-r",label=f"Non-cratonic")# label=r'T$_{\mathrm{non-cratonic}}$')
+
+axt.plot(T[:, idx_center], (-z + thickness_sa) / 1.0e3, "-r")# label=r'T$_{\mathrm{non-cratonic}}$')
 axt.grid(visible=True, axis='x',which='both',ls='--',color='red',alpha=0.3)
 axt.set_ylim(ylimplot)
 axt.set_yticks([])
@@ -1074,7 +970,7 @@ axt.tick_params(axis='x', colors='k')
 axt.spines['left'].set_visible(False)
 axt.spines['right'].set_visible(False)
 axt.set_title('Temperature [°C]',color='k')
-axt.legend(loc='lower left', fontsize=10, framealpha=0.9)
+# axt.legend(loc='lower left', fontsize=10, framealpha=0.9)
 #axt.spines['bottom'].set_visible(False)
 
 ################################
@@ -1103,14 +999,7 @@ if(sediments==True):
     uc =  (zaux>=thickness_sa+thickness_sed+thickness_decolement) & (zaux<thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust)
     lc =  (zaux>=thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust) & (zaux<thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust)
     lm =  (zaux>=thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust) & (zaux<=thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_mlit)
-    #upper craton
-    luc = (zaux>=thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust) & (zaux<=thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_mlit_crat_up)
-    #lower craton
-    llc = (zaux>=thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_mlit_crat_up) & (zaux<=thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_mlit_crat_up+thickness_mlit_crat_bot)
-    #bellow non-cratonic
-    astnc = zaux>thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_mlit
-    #bellow craton
-    astc = zaux>thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_mlit_crat_up+thickness_mlit_crat_bot
+    astnc = zaux>thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_mlit 
     
     #non cratonic rheological properties
     Cnc[air] = C_air
@@ -1161,74 +1050,13 @@ if(sediments==True):
     Vnc[lm] = V_mlit
     Vnc[astnc] = V_ast
 
-    #cratonic rheological properties
-    Cc[air] = C_air
-    Cc[sed] = C_sed
-    Cc[dec] = C_dec
-    Cc[uc] = C_upper_crust
-    Cc[lc] = C_lower_crust
-    Cc[luc] = C_mlit_uc
-    Cc[llc] = C_mlit_lc
-    Cc[astc] = C_ast
-
-    rhoc[air] = rho_air
-    rhoc[sed] = rho_sed
-    rhoc[dec] = rho_dec
-    rhoc[uc] = rho_upper_crust
-    rhoc[lc] = rho_lower_crust
-    rhoc[luc] = rho_mlit_uc
-    rhoc[llc] = rho_mlit_lc
-    rhoc[astc] = rho_ast
-
-    Ac[air] = A_air
-    Ac[sed] = A_sed
-    Ac[dec] = A_dec
-    Ac[uc] = A_upper_crust
-    Ac[lc] = A_lower_crust
-    Ac[luc] = A_mlit_uc
-    Ac[llc] = A_mlit_lc
-    Ac[astc] = A_ast
-
-    nc[air] = n_air
-    nc[sed] = n_sed
-    nc[dec] = n_dec
-    nc[uc] = n_upper_crust
-    nc[lc] = n_lower_crust
-    nc[luc] = n_mlit_uc
-    nc[llc] = n_mlit_lc
-    nc[astc] = n_ast
-
-    Qc[air] = Q_air
-    Qc[sed] = Q_sed
-    Qc[dec] = Q_dec
-    Qc[uc] = Q_upper_crust
-    Qc[lc] = Q_lower_crust
-    Qc[luc] = Q_mlit_uc
-    Qc[llc] = Q_mlit_lc
-    Qc[astc] = Q_ast
-
-    Vc[air] = V_air
-    Vc[sed] = V_sed
-    Vc[dec] = V_dec
-    Vc[uc] = V_upper_crust
-    Vc[lc] = V_lower_crust
-    Vc[luc] = V_mlit_uc
-    Vc[llc] = V_mlit_lc
-    Vc[astc] = V_ast
 else:
     air = zaux < thickness_sa
     uc = (zaux>=thickness_sa) & (zaux<thickness_sa+thickness_upper_crust)
     lc = (zaux>=thickness_sa+thickness_upper_crust) & (zaux<thickness_sa+thickness_upper_crust+thickness_lower_crust)
     lm = (zaux>=thickness_sa+thickness_upper_crust+thickness_lower_crust) & (zaux<=thickness_sa+thickness_upper_crust+thickness_lower_crust+thickness_mlit)
-    #upper craton
-    luc = (zaux>=thickness_sa+thickness_upper_crust+thickness_lower_crust) & (zaux<=thickness_sa+thickness_upper_crust+thickness_lower_crust+thickness_mlit_crat_up)
-    #lower craton
-    llc = (zaux>=thickness_sa+thickness_upper_crust+thickness_lower_crust+thickness_mlit_crat_up) & (zaux<=thickness_sa+thickness_upper_crust+thickness_lower_crust+thickness_mlit_crat_up+thickness_crat_bot)
-    #bellow non-cratonic
     astnc = zaux>thickness_sa+thickness_upper_crust+thickness_lower_crust+thickness_mlit
-    #bellow craton
-    astc = zaux>thickness_sa+thickness_upper_crust+thickness_lower_crust+thickness_mlit_crat_up+thickness_mlit_crat_bot
-
+    
     #non cratonic rheological properties
     Cnc[air] = C_air
     Cnc[uc] = C_upper_crust
@@ -1266,48 +1094,6 @@ else:
     Vnc[lm] = V_mlit
     Vnc[astnc] = V_ast
 
-    #cratonic rheological properties
-    Cc[air] = C_air
-    Cc[uc] = C_upper_crust
-    Cc[lc] = C_lower_crust
-    Cc[luc] = C_mlit_uc
-    Cc[llc] = C_mlit_lc
-    Cc[astc] = C_ast
-
-    rhoc[air] = rho_air
-    rhoc[uc] = rho_upper_crust
-    rhoc[lc] = rho_lower_crust
-    rhoc[luc] = rho_mlit_uc
-    rhoc[llc] = rho_mlit_lc
-    rhoc[astc] = rho_ast
-
-    Ac[air] = A_air
-    Ac[uc] = A_upper_crust
-    Ac[lc] = A_lower_crust
-    Ac[luc] = A_mlit_uc
-    Ac[llc] = A_mlit_lc
-    Ac[astc] = A_ast
-
-    nc[air] = n_air
-    nc[uc] = n_upper_crust
-    nc[lc] = n_lower_crust
-    nc[luc] = n_mlit_uc
-    nc[llc] = n_mlit_lc
-    nc[astc] = n_ast
-
-    Qc[air] = Q_air
-    Qc[uc] = Q_upper_crust
-    Qc[lc] = Q_lower_crust
-    Qc[luc] = Q_mlit_uc
-    Qc[llc] = Q_mlit_lc
-    Qc[astc] = Q_ast
-
-    Vc[air] = V_air
-    Vc[uc] = V_upper_crust
-    Vc[lc] = V_lower_crust
-    Vc[luc] = V_mlit_uc
-    Vc[llc] = V_mlit_lc
-    Vc[astc] = V_ast
 
 sr = 1.0E-15 #strain rate - s-1
 # sr = 1.0E-14
@@ -1480,14 +1266,11 @@ if(sediments==True):
 print(f"\tupper crust: {thickness_upper_crust*1.0e-3} km")
 print(f"\tlower crust: {thickness_lower_crust*1.0e-3} km")
 print(f"\tnon cratonic mantle lithosphere: {thickness_litho/1000} km")
-print(f"\tupper cratonic mantle lithosphere: {thickness_mlit_crat_up/1000} km")
-print(f"\tlower cratonic mantle lithosphere: {thickness_mlit_crat_bot/1000} km")
 if(sediments==True):
     print(f"\tcrust: {(thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust)/1000} km")
 else:
     print(f"\tcrust: {(thickness_upper_crust + thickness_lower_crust)/1000} km")
 print(f"\tnon cratonic lithosphere: {thickness_litho*1.0e-3} km")
-print(f"\tcratonic lithosphere: {thickness_crat_bot*1.0e-3} km")
 print('Important scale factors (C):')
 print(f"\tair: {C_air}")
 if(sediments==True):
@@ -1497,8 +1280,6 @@ print(f"\tupper crust: {C_upper_crust}")
 print(f"\tlower crust: {C_lower_crust}")
 print(f"\tweak seed: {C_seed}")
 print(f"\tnon cratonic mantle lithosphere: {C_mlit}")
-print(f"\tupper cratonic mantle lithosphere: {C_mlit_uc}")
-print(f"\tlower cratonic mantle lithosphere: {C_mlit_lc}")
 print(f"Preset of initial temperature field: {preset}")
 print(f"Radiogenic heat in lithospheric mantle: {radiogenic_heat_mlit}")
 print(f"Surface process: {sp_surface_processes}")
@@ -1541,14 +1322,11 @@ if(sediments==True):
 scenario_infos.append(f"\tupper crust: {thickness_upper_crust*1.0e-3} km")
 scenario_infos.append(f"\tlower crust: {thickness_lower_crust*1.0e-3} km")
 scenario_infos.append(f"\tnon cratonic mantle lithosphere:{ thickness_litho} km")
-scenario_infos.append(f"\tupper cratonic mantle lithosphere: {thickness_mlit_crat_up/1000} km")
-scenario_infos.append(f"\tlower cratonic mantle lithosphere: {thickness_mlit_crat_bot/1000} km")
 if(sediments==True):
     scenario_infos.append(f"\tcrust: {(thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust)/1000}")
 else:
     scenario_infos.append(f"\tcrust: {(thickness_upper_crust + thickness_lower_crust)/1000}")
 scenario_infos.append(f"\tnon cratonic lithosphere: {thickness_litho*1.0e-3} km")
-scenario_infos.append(f"\tcratonic lithosphere: {thickness_crat_bot*1.0e-3} km")
 scenario_infos.append(' ')
 scenario_infos.append(' ')
 scenario_infos.append('Important scale factors (C):')
@@ -1560,8 +1338,6 @@ scenario_infos.append(f"\tupper crust: {C_upper_crust}")
 scenario_infos.append(f"\tlower crust: {C_lower_crust}")
 scenario_infos.append(f"\tweak seed: {C_seed}")
 scenario_infos.append(f"\tnon cratonic mantle lithosphere: {C_mlit}")
-scenario_infos.append(f"\tupper cratonic mantle lithosphere: {C_mlit_uc}")
-scenario_infos.append(f"\tlower cratonic mantle lithosphere: {C_mlit_lc}")
 scenario_infos.append(' ')
 scenario_infos.append(f"Preset of initial temperature field: {preset}")
 scenario_infos.append(f"Radiogenic heat in lithospheric mantle: {radiogenic_heat_mlit}")
