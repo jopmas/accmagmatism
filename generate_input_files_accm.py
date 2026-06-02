@@ -157,10 +157,12 @@ if(crameri_colors):
 #Setting the kind of tectonic scenario and number of cores
 ###############################################################################################################################################
 
-scenario_kind = 'double_keel'
+# scenario_kind = 'double_keel'
+scenario_kind = 'accordion'
 
 experiemnts = {
                'double_keel': 'Double Cratonic Keel',
+               'accordion': 'Accordion',
                }
 
 # ncores = 20
@@ -198,6 +200,8 @@ assimetric_cratons = True
 if(sediments==True):
     # thickness of sticky air layer (m)
     thickness_sa = 40 * 1.0e3
+     #thickness of basalt layer (m)
+    thickness_basalt = 0 * 1.0e3
     #thickness of sediments (m)
     thickness_sed = 3 * 1.0e3
     # thickness of decolement (m)
@@ -211,6 +215,8 @@ if(sediments==True):
 else:
     # thickness of sticky air layer (m)
     thickness_sa = 40 * 1.0e3
+    #thickness of basalt layer (m)
+    thickness_basalt = 0 * 1.0e3
     # thickness of upper crust (m)
     thickness_upper_crust = 25 * 1.0e3
     # thickness of lower crust (m)
@@ -232,6 +238,7 @@ seed_depth = 3 * 1.0e3 #9 * 1.0e3 #original
 x = np.linspace(0, Lx, Nx)
 z = np.linspace(Lz, 0, Nz)
 X, Z = np.meshgrid(x, z)
+dz = Lz / (Nz - 1)
 
 if(sediments==True):
     interfaces = {
@@ -242,6 +249,7 @@ if(sediments==True):
         "upper_crust": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust),
         "decolement": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement),
         "sediments": np.ones(Nx) * (thickness_sa + thickness_sed),
+        "basalt": np.ones(Nx) * (thickness_sa + thickness_basalt),
         "air": np.ones(Nx) * (thickness_sa),
         }
 else:
@@ -251,9 +259,9 @@ else:
         "seed_base": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust - seed_depth),
         "seed_top": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust - seed_depth),
         "upper_crust": np.ones(Nx) * (thickness_sa + thickness_upper_crust),
+        "basalt": np.ones(Nx) * (thickness_sa + thickness_basalt),
         "air": np.ones(Nx) * (thickness_sa),
         }
-
 
 #Building seed
 # seed thickness (m)
@@ -280,6 +288,7 @@ else:
 
 #Viscosity scale factor
 C_air = 1.0
+C_basalt = 1.0
 if(sediments==True):
     C_sed = 1.0
     C_dec = 0.1
@@ -291,6 +300,7 @@ C_ast = 1.0
 
 #density (kg/m3)
 rho_air = 1.0
+rho_basalt = 2900.0
 if(sediments==True):
     rho_sed = 2700.0
     rho_dec = 2350.0
@@ -302,6 +312,7 @@ rho_ast = 3378.0
 
 #radiogenic heat production (W/kg)
 H_air = 0.0
+H_basalt = 9.0e-11
 if(sediments==True):
     H_sed = 1.25e-6 / 2700.0
     H_dec = 1.25e-6 / 2700.0
@@ -322,6 +333,7 @@ H_ast = 0.0 #Turccote book: 7.38e-12 #Default is 0.0
 
 #Pre exponential constant (Pa**-n s**-1)
 A_air = 1.0E-18
+A_basalt = 8.574e-28
 if(sediments==True):
     A_sed = 8.574e-28
     A_dec = 8.574e-28
@@ -333,6 +345,7 @@ A_ast = 1.393e-14
 
 #Power law exponent
 n_air = 1.0
+n_basalt = 4.0
 if(sediments==True):
     n_sed = 4.0
     n_dec = 4.0
@@ -344,6 +357,7 @@ n_ast = 3.0
 
 #Activation energy (J/mol)
 Q_air = 0.0
+Q_basalt = 222.0e3
 if(sediments==True):
     Q_sed = 222.0e3
     Q_dec = 222.0e3
@@ -355,6 +369,7 @@ Q_ast = 429.0e3
 
 #Activation volume (m3/mol)
 V_air = 0.0
+V_basalt = 0.0
 if(sediments==True):
     V_sed = 0.0
     V_dec = 0.0
@@ -364,27 +379,37 @@ V_seed = 0.0
 V_mlit = 25.0e-6
 V_ast = 15.0e-6
 
+rheology_mlit = 'dry' #rheology of lithospheric mantle: dry olivine or wet olivine
+# rheology_mlit = 'wet' #rheology of lithospheric mantle: dry olivine or wet olivine
+
+if(rheology_mlit == 'wet'):
+    C_mlit = 100.0
+    A_mlit = A_ast
+    n_mlit = n_ast
+    Q_mlit = Q_ast
+    V_mlit = V_ast
+
 with open("interfaces.txt", "w") as f:
-    rheology_mlit = 'dry' #rheology of lithospheric mantle: dry olivine or wet olivine
+    
     if(sediments==True):
         layer_properties = f"""
-            C   {C_ast}   {C_mlit}   {C_lower_crust}   {C_seed}   {C_lower_crust}   {C_upper_crust}   {C_dec}   {C_sed}   {C_air}
-            rho {rho_ast} {rho_mlit} {rho_lower_crust} {rho_seed} {rho_lower_crust} {rho_upper_crust} {rho_dec} {rho_sed} {rho_air}
-            H   {H_ast}   {H_mlit}   {H_lower_crust}   {H_seed}   {H_lower_crust}   {H_upper_crust}   {H_dec}   {H_sed}   {H_air}
-            A   {A_ast}   {A_mlit}   {A_lower_crust}   {A_seed}   {A_lower_crust}   {A_upper_crust}   {A_dec}   {A_sed}   {A_air}
-            n   {n_ast}   {n_mlit}   {n_lower_crust}   {n_seed}   {n_lower_crust}   {n_upper_crust}   {n_dec}   {n_sed}   {n_air}
-            Q   {Q_ast}   {Q_mlit}   {Q_lower_crust}   {Q_seed}   {Q_lower_crust}   {Q_upper_crust}   {Q_dec}   {Q_sed}   {Q_air}
-            V   {V_ast}   {V_mlit}   {V_lower_crust}   {V_seed}   {V_lower_crust}   {V_upper_crust}   {V_dec}   {V_sed}   {V_air}
+            C   {C_ast}   {C_mlit}   {C_lower_crust}   {C_seed}   {C_lower_crust}   {C_upper_crust}   {C_dec}   {C_sed}   {C_basalt}   {C_air}
+            rho {rho_ast} {rho_mlit} {rho_lower_crust} {rho_seed} {rho_lower_crust} {rho_upper_crust} {rho_dec} {rho_sed} {rho_basalt} {rho_air}
+            H   {H_ast}   {H_mlit}   {H_lower_crust}   {H_seed}   {H_lower_crust}   {H_upper_crust}   {H_dec}   {H_sed}   {H_basalt}   {H_air}
+            A   {A_ast}   {A_mlit}   {A_lower_crust}   {A_seed}   {A_lower_crust}   {A_upper_crust}   {A_dec}   {A_sed}   {A_basalt}   {A_air}
+            n   {n_ast}   {n_mlit}   {n_lower_crust}   {n_seed}   {n_lower_crust}   {n_upper_crust}   {n_dec}   {n_sed}   {n_basalt}   {n_air}
+            Q   {Q_ast}   {Q_mlit}   {Q_lower_crust}   {Q_seed}   {Q_lower_crust}   {Q_upper_crust}   {Q_dec}   {Q_sed}   {Q_basalt}   {Q_air}
+            V   {V_ast}   {V_mlit}   {V_lower_crust}   {V_seed}   {V_lower_crust}   {V_upper_crust}   {V_dec}   {V_sed}   {V_basalt}   {V_air}
         """
     else:
         layer_properties = f"""
-            C   {C_ast}   {C_mlit}   {C_lower_crust}   {C_seed}   {C_lower_crust}   {C_upper_crust}   {C_air}
-            rho {rho_ast} {rho_mlit} {rho_lower_crust} {rho_seed} {rho_lower_crust} {rho_upper_crust} {rho_air}
-            H   {H_ast}   {H_mlit}   {H_lower_crust}   {H_seed}   {H_lower_crust}   {H_upper_crust}   {H_air}
-            A   {A_ast}   {A_mlit}   {A_lower_crust}   {A_seed}   {A_lower_crust}   {A_upper_crust}   {A_air}
-            n   {n_ast}   {n_mlit}   {n_lower_crust}   {n_seed}   {n_lower_crust}   {n_upper_crust}   {n_air}
-            Q   {Q_ast}   {Q_mlit}   {Q_lower_crust}   {Q_seed}   {Q_lower_crust}   {Q_upper_crust}   {Q_air}
-            V   {V_ast}   {V_mlit}   {V_lower_crust}   {V_seed}   {V_lower_crust}   {V_upper_crust}   {V_air}
+            C   {C_ast}   {C_mlit}   {C_lower_crust}   {C_seed}   {C_lower_crust}   {C_upper_crust}   {C_basalt}   {C_air}
+            rho {rho_ast} {rho_mlit} {rho_lower_crust} {rho_seed} {rho_lower_crust} {rho_upper_crust} {rho_basalt} {rho_air}
+            H   {H_ast}   {H_mlit}   {H_lower_crust}   {H_seed}   {H_lower_crust}   {H_upper_crust}   {H_basalt}   {H_air}
+            A   {A_ast}   {A_mlit}   {A_lower_crust}   {A_seed}   {A_lower_crust}   {A_upper_crust}   {A_basalt}   {A_air}
+            n   {n_ast}   {n_mlit}   {n_lower_crust}   {n_seed}   {n_lower_crust}   {n_upper_crust}   {n_basalt}   {n_air}
+            Q   {Q_ast}   {Q_mlit}   {Q_lower_crust}   {Q_seed}   {Q_lower_crust}   {Q_upper_crust}   {Q_basalt}   {Q_air}
+            V   {V_ast}   {V_mlit}   {V_lower_crust}   {V_seed}   {V_lower_crust}   {V_upper_crust}   {V_basalt}   {V_air}
         """
 
     for line in layer_properties.split("\n"):
@@ -428,15 +453,15 @@ else:
 if(variable_bcv == True):
     #first rifting phase
     # dt_rifting1 = 8.0
-    dt_rifting1 = 20.0
+    # dt_rifting1 = 20.0
     # dt_rifting1 = 25.0
     # dt_rifting1 = 50.0
-    # dt_rifting1 = 100.0
+    dt_rifting1 = 100.0
     
     ti_quiescence1 = 0 + dt_rifting1 #Myr
 
     #Time of quiescence1 to and start of convergence to close the ocean basin
-    dt_quiescence1 = 15 #Myr
+    dt_quiescence1 = 20 #Myr
     tf_quiescence1 = ti_quiescence1 + dt_quiescence1
 
     #Closing the ocean basin over dt_rifting1 Myr and starting orogeny to begin the second quiescence phase
@@ -512,11 +537,12 @@ multigrid                           = 1             # ok -> soon to be on the co
 solver                              = direct        # default is direct [direct/iterative]
 denok                               = {denok}       # default is 1.0E-4
 particles_per_element               = {particles_per_element}          # default is 81
+surface_particles_per_element       = 40           # default is 2
 particles_perturb_factor            = 0.7           # default is 0.5 [values are between 0 and 1]
 rtol                                = 1.0e-7        # the absolute size of the residual norm (relevant only for iterative methods), default is 1.0E-5
 RK4                                 = Euler         # default is Euler [Euler/Runge-Kutta]
-Xi_min                              = 1.0e-6       # default is 1.0E-14
-random_initial_strain               = 0.0           # default is 0.0
+Xi_min                              = 1.0e-5       # default is 1.0E-14
+random_initial_strain               = 0.3           # default is 0.0
 pressure_const                      = -1.0          # default is -1.0 (not used) - useful only in horizontal 2D models
 initial_dynamic_range               = True         # default is False [True/False]
 periodic_boundary                   = False         # default is False [True/False]
@@ -528,10 +554,8 @@ basal_heat                          = 0.0          # default is -1.0
 # Surface processes
 sp_surface_tracking                 = {sp_surface_tracking}         # default is False [True/False]
 sp_surface_processes                = {sp_surface_processes}        # default is False [True/False]
-# sp_dt                               = 1.0e5        # default is 0.0
-# sp_d_c                              = 1.0          # default is 0.0
-plot_sediment                       = False        # default is False [True/False]
-a2l                                 = True         # default is True [True/False]
+plot_sediment                       = False         # default is False [True/False]
+a2l                                 = True          # default is True [True/False]
 free_surface_stab                   = True         # default is True [True/False]
 theta_FSSA                          = 0.5          # default is 0.5 (only relevant when free_surface_stab = True)
 # Time constrains
@@ -539,7 +563,7 @@ step_max                            = 800000        # Maximum time-step of the s
 time_max                            = {time_max}    # Maximum time of the simulation [years]
 dt_max                              = {dt_max}      # Maximum time between steps of the simulation [years]
 step_print                          = {step_print}  # Make file every <step_print>
-sub_division_time_step              = 0.5           # default is 1.0
+sub_division_time_step              = 0.25          # default is 1.0
 initial_print_step                  = 0             # default is 0
 initial_print_max_time              = 1.0e6         # default is 1.0E6 [years]
 # Viscosity
@@ -561,7 +585,6 @@ sticky_blanket_air                  = True         # default is False [True/Fals
 # climate_change_from_ascii           = {climate_change_from_ascii}         # default is False [True/False]
 print_step_files                    = {print_step_files}          # default is True [True/False]
 checkered                           = {checkered}         # Print one element in the print_step_files (default is False [True/False])
-sp_mode                             = none             # default is 1 [0/1/2]
 geoq                                = on            # ok
 geoq_fac                            = 100.0           # ok
 # Physical parameters
@@ -571,11 +594,13 @@ thermal_diffusivity_coefficient     = 1.0e-6 #0.75e-6       #default is 1.0e-6  
 gravity_acceleration                = 10.0          # ok
 density_mantle                      = 3300.         # ok
 external_heat                       = 0.0e-12       # ok
-heat_capacity                       = 700.         # ok #default is 1250
+heat_capacity                       = 1250.         # ok #default is 1250
 non_linear_method                   = on            # ok
 adiabatic_component                 = on            # ok
 radiogenic_component                = on            # ok
 magmatism                           = {magmatism}           # ok
+export_lithology = True
+magmatic_layer = 6
 # Velocity boundary conditions
 top_normal_velocity                 = fixed         # ok
 top_tangential_velocity             = free          # ok
@@ -838,6 +863,7 @@ ylimplot = [-Lz/1000+thickness_sa/1000, 0+thickness_sa/1000]
 #layers colour scheme
 cr = 255.
 color_air = "xkcd:white"
+color_basalt = "xkcd:red"
 color_sed = (241./cr,184./cr,68./cr)
 color_dec = (137./cr,81./cr,151./cr)
 color_uc = (228./cr,156./cr,124./cr)
@@ -846,7 +872,8 @@ color_lit = (155./cr,194./cr,155./cr)
 color_ast = (207./cr,226./cr,205./cr)
 
 if(sediments==True):
-    colors = {'air': color_sed,
+    colors = {'air': color_basalt,
+        'basalt': color_sed,
         'sediments': color_dec,
         'decolement':color_uc,
         'upper_crust': color_lc,
@@ -856,14 +883,30 @@ if(sediments==True):
         'litho_nc': color_ast,
     }
 else:
-    colors = {'air': color_uc,
+    # colors = {'air': color_uc,
+    #           'basalt': color_basalt,
+    #           'upper_crust': color_lc,
+    #           'seed_top': color_lc,
+    #           'seed_base': color_lc,
+    #           'lower_crust': color_lit,
+    #           'litho_nc': color_ast,}
+    # labels = {
+    #     'air': 'Upper crust',
+    #     'upper_crust': 'Lower crust',
+    #     'lower_crust': 'Lithospheric mantle',
+    #     'litho_nc': 'Asthenosphere',#'Upper cratonic lithospheric mantle',
+    # }
+
+    colors = {'air': color_basalt,
+              'basalt': color_uc,
               'upper_crust': color_lc,
               'seed_top': color_lc,
               'seed_base': color_lc,
               'lower_crust': color_lit,
               'litho_nc': color_ast,}
     labels = {
-        'air': 'Upper crust',
+        'air': 'Basalt',
+        'basalt':'Upper crust',
         'upper_crust': 'Lower crust',
         'lower_crust': 'Lithospheric mantle',
         'litho_nc': 'Asthenosphere',#'Upper cratonic lithospheric mantle',
@@ -1114,18 +1157,12 @@ c0 = 20.0E6
 sigmanc_max = c0 * np.cos(phi) + Pnc * np.sin(phi)
 sigmac_max = c0 * np.cos(phi) + Pc * np.sin(phi)
 
-TKnc = T[:, idx_center] + 273
-TKc = T[:, 0] + 273
+TKnc = T[:, 0] + 273
 
 viscnc = Cnc * Anc**(-1./nnc) * sr**((1.0-nnc)/nnc)*np.exp((Qnc + Vnc*Pnc)/(nnc*R*TKnc))
 sigmanc_v = viscnc * sr
 condnc = sigmanc_v>sigmanc_max
 sigmanc_v[condnc]=sigmanc_max[condnc]
-
-viscc = Cc * Ac**(-1./nc) * sr**((1.0-nc)/nc)*np.exp((Qc + Vc*Pc)/(nc*R*TKc))
-sigmac_v = viscc * sr
-condc = sigmac_v>sigmac_max
-sigmac_v[condc]=sigmac_max[condc]
 
 axsg = axs.inset_axes((0.605,
                        0,
@@ -1134,11 +1171,11 @@ axsg = axs.inset_axes((0.605,
 if(sediments==True):
     axsg.plot(sigmanc_v/1e9,-(z-thickness_sa)/1e3,'r', label=f'Non-cratonic')
     # axsg.plot(sigmanc_min/1e9,-(z-t_sa)/1e3,'k--',lw=0.8)
-    axsg.plot(sigmac_v/1e9,-(z-thickness_sa)/1e3,'k', label=f'Cratonic')
+    # axsg.plot(sigmac_v/1e9,-(z-thickness_sa)/1e3,'k', label=f'Cratonic')
 else:
     axsg.plot(sigmanc_v/1e9,-(z-thickness_sa)/1e3,'r', label=f'Non-cratonic')
     # axsg.plot(sigmanc_min/1e9,-(z-t_sa)/1e3,'k--',lw=0.8)
-    axsg.plot(sigmac_v/1e9,-(z-thickness_sa)/1e3,'k', label=f'Cratonic')
+    # axsg.plot(sigmac_v/1e9,-(z-thickness_sa)/1e3,'k', label=f'Cratonic')
     # axsg.plot(sigmac_min/1e9,-(z-t_sa)/1e3,'k--',lw=0.8)
 
 axsg.grid(visible=True, axis='x',which='both',ls='--',color='gray',alpha=0.8)
@@ -1258,6 +1295,7 @@ if(variable_bcv == True):
     print(f'Time of rifting1: {dt_rifting1} Myr')
     print(f"Time of quiescence after rifting: {dt_quiescence1} Myr")
     print(f"Time of quiescence after orogeny: {dt_quiescence2} Myr")
+print(f'Total time: {time_max/1.0e6} Myr')
 print('Layers thickness:')
 print(f"\tair: {thickness_sa*1.0e-3} km")
 if(sediments==True):
@@ -1314,6 +1352,7 @@ if(variable_bcv == True):
     scenario_infos.append(f"Time of quiescence after rifting: {dt_quiescence1} Myr")
     scenario_infos.append(f"Time of quiescence after orogeny: {dt_quiescence2} Myr")
     scenario_infos.append(' ')
+scenario_infos.append(f'Total time: {time_max/1.0e6} Myr')
 scenario_infos.append('Layers thickness:')
 scenario_infos.append(f"\tair: {thickness_sa*1.0e-3} km")
 if(sediments==True):
@@ -1363,9 +1402,9 @@ np.savetxt('infos_'+path[-1] + '.txt', scenario_infos, fmt="%s")
 ##############################################################################
 
 linux = False
-mac = False
+mac = True
 aguia = False
-hypatia = True
+hypatia = False
 
 mandyoc_options = '-seed 0,5,8 -strain_seed 0.0,1.0,1.0'
 
@@ -1386,67 +1425,38 @@ if(linux):
                 f.write(' '.join(line.split()) + '\n')
 
 if(mac):
-    claudio=True
     dirname = '${PWD##*/}'
+    current_dir = '${PWD}'
+    # main_folders = '/scratch/jpmacedo'
+    main_folders = '/Users/joao_macedo'
+    run_mac = f'''
 
-    if(claudio):
-        PETSC_DIR = '/Users/claudiomora/Documents/petsc'
-        PETSC_ARCH = 'arch-label-optimized/bin/mpiexec'
-        MANDYOC = '/Users/claudiomora/Documents/mandyoc/bin/mandyoc'
+    #Setup of Mandyoc variables:
+    PETSC_DIR='{main_folders}/opt/petsc'
+    PETSC_ARCH='optimized-v3.24.1-mpich'
 
-        run_mac = f'''
-                    #!/bin/bash
-                    touch FD.out
-                    {PETSC_DIR}/{PETSC_ARCH} -n 16 {MANDYOC} {mandyoc_options} | tee FD.log
-                    
-                    DIRNAME={dirname}
+    MANDYOC='{main_folders}/opt/mandyoc/bin/mandyoc'
+    MANDYOC_OPTIONS='{mandyoc_options}'
 
-                    zip $DIRNAME.zip interfaces.txt param.txt input*_0.txt vel_bc.txt velz_bc.txt run*.sh
-                    zip -u $DIRNAME.zip bc_velocity_*.txt
-                    zip -u $DIRNAME.zip density_*.txt
-                    zip -u $DIRNAME.zip heat_*.txt
-                    zip -u $DIRNAME.zip pressure_*.txt
-                    zip -u $DIRNAME.zip sp_surface_global_*.txt
-                    zip -u $DIRNAME.zip strain_*.txt
-                    zip -u $DIRNAME.zip temperature_*.txt
-                    zip -u $DIRNAME.zip time_*.txt
-                    zip -u $DIRNAME.zip velocity_*.txt
-                    zip -u $DIRNAME.zip viscosity_*.txt
-                    zip -u $DIRNAME.zip scale_bcv.txt
-                    zip -u $DIRNAME.zip step*.txt
-                    zip -u $DIRNAME.zip *.bin*
-                    zip -u $DIRNAME.zip *.log
-                    
+    #run mandyoc
+    ${{PETSC_DIR}}/${{PETSC_ARCH}}/bin/mpirun -n {ncores} ${{MANDYOC}} ${{MANDYOC_OPTIONS}}
 
-                    #rm *.log
-                    rm vel_bc*
-                    rm velz*
-                    rm bc_velocity*
-                    rm velocity*
-                    rm step*
-                    rm temperature*
-                    rm density*
-                    rm viscosity*
-                    rm heat*
-                    rm strain_*
-                    rm time*
-                    rm pressure_*
-                    rm sp_surface_global*
-                    rm scale_bcv.txt
-                    rm *.bin*
+    conda activate mpy
+    #Creating directories for the output files
+    bash {main_folders}/opt/mv-updated.sh
 
-                '''
-    else:
-        run_mac = f'''
-                #!/bin/bash
-                MPI_PATH=$HOME/opt/petsc/arch-label-optimized/bin
-                MANDYOC_PATH=$HOME/opt/mandyoc
-                NUMBER_OF_CORES=6
-                touch FD.out
-                $MPI_PATH/mpirun -n $NUMBER_OF_CORES $MANDYOC_PATH/mandyoc {mandyoc_options} | tee FD.out
-                bash $HOME/Doutorado/cenarios/mandyoc/scripts/zipper_gcloud.sh
-                #bash $HOME/Doutorado/cenarios/mandyoc/scripts/clean_gcloud.sh
-            '''
+    #Creating netdf files
+    julia -t {str(int(ncores))} {main_folders}/opt/convertNETCDF_v2.jl {current_dir}
+    julia -t {str(int(ncores))} {main_folders}/opt/LithoNETCDF_v2.jl {current_dir}
+
+    python {main_folders}/opt/track_particles_v3.py {current_dir} 0
+    zip {dirname}.zip *.nc
+
+    #run of auxiliary scripts to zip and clean the folder
+    bash zipper.sh
+    # bash clean.sh
+    '''
+
     with open('run_mac.sh', 'w') as f:
         for line in run_mac.split('\n'):
             line = line.strip()
@@ -1529,6 +1539,7 @@ if(aguia):
 if(hypatia):
 
     dirname = '${PWD##*/}'
+    current_dir = '${PWD}'
     # main_folders = '/scratch/jpmacedo'
     main_folders = '/home/jpmacedo'
     run_hypatia = f'''
@@ -1559,9 +1570,20 @@ if(hypatia):
     #run mandyoc
     mpirun -n ${{SLURM_NTASKS}} --map-by :OVERSUBSCRIBE ${{MANDYOC}} ${{MANDYOC_OPTIONS}}
 
+    conda activate mpy
+    #Creating directories for the output files
+    bash /home/jpmacedo/opt/mv-updated.sh
+
+    #Creating netdf files
+    julia -t {str(int(ncores))} /home/jpmacedo/opt/convertNETCDF_v2.jl {current_dir}
+    julia -t {str(int(ncores))} /home/jpmacedo/opt/LithoNETCDF_v2.jl {current_dir}
+
+    python /home/jpmacedo/opt/track_particles_v3.py {current_dir} 0
+    zip {dirname}.zip *.nc
+
     #run of auxiliary scripts to zip and clean the folder
-    bash zipper.sh
-    bash clean.sh
+    # bash zipper.sh
+    # bash clean.sh
     '''
     with open('run_hypatia.sh', 'w') as f:
         for line in run_hypatia.split('\n'):
@@ -1584,6 +1606,7 @@ zipper = f'''
             "heat_*.txt"
             "pressure_*.txt"
             "sp_surface_global_*.txt"
+            "lithology_*.txt"
             "strain_*.txt"
             "temperature_*.txt"
             "time_*.txt"
@@ -1597,6 +1620,7 @@ zipper = f'''
             "*.bin*.txt"
             "bc*-1.txt"
             "*.log"
+            # "_*.nc"
             )
 
         # Faz um loop e usa find para evitar o erro "argument list too long"
@@ -1620,6 +1644,7 @@ clean = f'''
             "heat_*.txt"
             "pressure_*.txt"
             "sp_surface_global_*.txt"
+            "lithology_*.txt"
             "strain_*.txt"
             "temperature_*.txt"
             "time_*.txt"
