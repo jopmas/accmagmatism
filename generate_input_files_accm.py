@@ -11,7 +11,142 @@ from matplotlib.patches import Patch
 import xarray as xr
 
 path = os.getcwd().split('/')
+local_path = os.getcwd()
 machine_path = '/'+path[1]+'/'+path[2]
+
+#CLASSES
+class MandyocLayer:
+    def __init__(self, layer_label, rheology: type,
+                 density, effective_viscosity_scale_factor=1.0, radiogenic_heat_production=0.0,
+                 base_depth=0.0e3, Nx=()):
+        """"
+        This class creates a layer with the given properties
+        layer_label: str
+            Name of the layer
+        rheology: class
+            Rheological properties of the layer onbtained from LithologicalUnit class
+        density: float
+            Density of the layer [kg/m3]
+        interface: NoneType or np.array
+            Interface of the layer.
+            If None, the interface will be setted after the creation of the Layer.
+            If np.array, the interface is defined by the given array.
+        effective_viscosity_scale_factor: float
+            Scale factor for the effective vistocisty
+        radiogenic_heat_production: float
+            Radiogenic heat production of the layer [W/kg]
+        base_depth: float
+            Depth of the layer base [m]
+        Nx: int
+            Number of points in x direction
+        """
+
+        self.layer_label = layer_label
+        self.rheology = LithologicalUnit(rheology)
+        self.density = density
+        self.effective_viscosity_scale_factor = effective_viscosity_scale_factor
+        self.radiogenic_heat_production = radiogenic_heat_production
+        self.rheology_name = self.rheology.name
+        self.pre_exponential_constant = self.rheology.pre_exponential_constant
+        self.power_law_exponent = self.rheology.power_law_exponent
+        self.activation_energy = self.rheology.activation_energy
+        self.activation_volume = self.rheology.activation_volume
+        self.base_depth = base_depth
+        self.Nx = Nx
+
+        self.interface = np.ones(Nx)*base_depth
+
+class LithologicalUnit:
+    """"
+    This class calls the respective rheological properties of the given mineral
+
+    mineral_name: class
+        Mineral rheology written in CamelCase. For example, WetOlivine, DryOlivine, WetQuartz
+    """
+    def __init__(self, mineral_name: type):
+        self.mineral_name = mineral_name() # mineral_name is a class, so we need to call it to get the object
+        self.name = self.mineral_name.name
+        self.pre_exponential_constant = self.mineral_name.pre_exponential_constant
+        self.power_law_exponent = self.mineral_name.power_law_exponent
+        self.activation_energy = self.mineral_name.activation_energy
+        self.activation_volume = self.mineral_name.activation_volume
+
+class WetOlivine:
+    """
+    Wet olivine rheological properties
+    """
+    def __init__(self):
+        self.name = 'wet_olivine'
+        self.pre_exponential_constant = 1.393e-14
+        self.power_law_exponent = 3
+        self.activation_energy = 429.0e3
+        self.activation_volume = 15.0e-6
+
+class DryOlivine:
+    """
+    Dry olivine rheological properties
+    """
+    def __init__(self):
+        self.name = 'dry_olivine'
+        self.pre_exponential_constant = 2.4168e-15
+        self.power_law_exponent = 3.5
+        self.activation_energy = 540.0e3
+        self.activation_volume = 25.0e-6
+
+class WetQuartz:
+    """
+    Wet quartz rheological properties
+    """
+    def __init__(self):
+        self.name = 'wet_quartz'
+        self.pre_exponential_constant = 8.574e-28
+        self.power_law_exponent = 4.0
+        self.activation_energy = 222.0e3
+        self.activation_volume = 0.0
+
+class DryQuartz:
+    """
+    Dry quartz rheological properties
+    """
+    def __init__(self):
+        self.name = 'dry_quartz'
+        self.pre_exponential_constant = 0.0
+        self.power_law_exponent = 0.0
+        self.activation_energy = 0.0
+        self.activation_volume = 0.0
+
+class Basalt:
+    """
+    Basalt rheological properties
+    """
+    def __init__(self):
+        self.name = 'basalt'
+        self.pre_exponential_constant = 8.574e-28
+        self.power_law_exponent = 4.0
+        self.activation_energy = 222.0e3
+        self.activation_volume = 0.0
+
+class Plagioclase:
+    """
+    Plagioclase rheological properties (Shelton and Tullis, 1981)
+    """
+    def __init__(self):
+        self.name = 'plagioclase' 
+        self.pre_exponential_constant = 0.0
+        self.power_law_exponent = 3.05
+        self.activation_energy = 276.e3
+        self.activation_volume = 0.0
+
+class Air:
+    """
+    Air rheological properties
+    """
+    def __init__(self):
+        self.name = 'air'
+        self.pre_exponential_constant = 1.0e-18
+        self.power_law_exponent = 1.0
+        self.activation_energy = 0.0
+        self.activation_volume = 0.0
 
 ###############################################################################################################################################
 #Functions
@@ -106,9 +241,14 @@ def calc_mean_temperaure_region(data, Nz, xx, begin, end):
 
 ###############################################################################################################################################
 #Customizing matplotlib 
+
 label_size=18
 plt.rc('xtick', labelsize=label_size)
 plt.rc('ytick', labelsize=label_size)
+
+scenario_infos = ['SCENARIO INFOS:']
+scenario_infos.append(' ')
+scenario_infos.append('Name: ' + path[-1])
 
 #Install the following package from (https://www.fabiocrameri.ch/colourmaps/) for inclusive color palletes
 #or comment set crameri_colors as False
@@ -156,8 +296,14 @@ if(crameri_colors):
 ###############################################################################################################################################
 #Setting the kind of tectonic scenario and number of cores
 ###############################################################################################################################################
-
+# scenario_name = 'AR8'
+# scenario_name = 'AR20'
+# scenario_name = 'AR25'
+# scenario_name = 'AR50'
+# scenario_name = 'AR100'
+scenario_name = 'AR150'
 # scenario_kind = 'double_keel'
+
 scenario_kind = 'accordion'
 
 experiemnts = {
@@ -179,6 +325,111 @@ cores_per_node = 96
 #Estimating number of nodes needed according to number of cores
 nodes = (ncores + cores_per_node - 1) // cores_per_node #ceil division
 
+
+#Rheological and Thermal parameters
+# lower_crust_effective_viscosity_scale_factor = 1.0
+lower_crust_effective_viscosity_scale_factor = 10.0
+
+# homogeneous_mlit = True
+# homogeneous_mlit = False
+
+# velocity = 1.0 #cm/yr
+# velocity = 2.0 #cm/yr
+# velocity = 3.0 #cm/yr
+
+# seed_in_litho = False
+seed_in_litho = True
+
+DeltaT = 0
+# DeltaT = 290 # oC
+
+# preset = True
+preset = False
+
+# selection_in_preset = True
+selection_in_preset = False
+
+# mean_litho = True
+mean_litho = False
+
+# high_kappa_in_asthenosphere = True
+high_kappa_in_asthenosphere = False #default
+
+splitted_local = local_path.split('/')
+# path_to_preliminary_scenario = f"{'/'.join(splitted_local[:-1])}"
+path_to_preliminary_scenario = f"/Volumes/Joao_Macedo/Doutorado/Silva_et_al_2026_Reconstruction_exhumed_mantle_data_and_scripts/scenarios"
+scenario = f'{path_to_preliminary_scenario}/preliminary/' #Tp = 1350 oC
+
+#Convergence criteria
+# denok                            = 1.0e-15
+denok                            = 2.0e-14 #was 1.0e-14
+particles_per_element            = 100
+
+#Surface constrains
+sp_surface_tracking              = True
+sp_surface_processes             = False
+# sp_surface_processes             = True
+
+#time constrains 
+time_max                         = 40.0e6
+dt_max                           = 5.0e3
+# time_max                         = 200.0e6
+step_print                       = 100
+
+#External inputs: bc velocity, velocity field, precipitation and
+#climate change
+
+variable_bcv                     = True
+# variable_bcv                     = False
+velocity_from_ascii              = True
+ast_wind                         = False #True
+
+
+if(sp_surface_processes == True):
+    precipitation_profile_from_ascii = True #False
+    climate_change_from_ascii        = True #False
+else:
+    precipitation_profile_from_ascii = False
+    climate_change_from_ascii        = False
+
+# 
+#step files
+print_step_files                 = True
+checkered = False
+# checkered = True
+
+#magmatism
+# magmatism = 'off'
+magmatism = 'on'
+magmatism_extraction = 'on'
+
+rheology_model = 19
+#velocity bc
+top_normal_velocity                 = 'fixed'         # ok
+top_tangential_velocity             = 'free'         # ok
+bot_normal_velocity                 = 'fixed'         # ok
+bot_tangential_velocity             = 'free '         # ok
+left_normal_velocity                = 'fixed'         # ok
+# left_tangential_velocity            = 'free'         # ok
+left_tangential_velocity            = 'fixed'         # ok
+right_normal_velocity               = 'fixed'         # ok
+right_tangential_velocity           = 'fixed'         # ok
+
+# periodic_boundary = True
+periodic_boundary = False
+if(periodic_boundary == True):
+    left_normal_velocity                = 'free'         # ok
+    left_tangential_velocity            = 'free '         # ok
+    right_normal_velocity               = 'free'         # ok
+    right_tangential_velocity           = 'free'         # ok
+
+#temperature bc
+top_temperature                     = 'fixed'         # ok
+bot_temperature                     = 'fixed'         # ok
+left_temperature                    = 'fixed'          # ok
+right_temperature                   = 'fixed'          # ok
+
+
 ###############################################################################################################################################
 # Domain and interfaces
 ###############################################################################################################################################
@@ -187,9 +438,11 @@ Lx = 3500 * 1.0e3
 # total model vertical extent (m)
 Lz = 600 * 1.0e3
 # number of points in horizontal direction
-Nx = 1751
+# Nx = 1751
+Nx = 3501
 # number of points in vertical direction
-Nz = 301
+# Nz = 301
+Nz = 601
 
 # sediments = True
 sediments = False
@@ -199,7 +452,7 @@ assimetric_cratons = True
 
 if(sediments==True):
     # thickness of sticky air layer (m)
-    thickness_sa = 40 * 1.0e3
+    thickness_air = 40 * 1.0e3
      #thickness of basalt layer (m)
     thickness_basalt = 0 * 1.0e3
     #thickness of sediments (m)
@@ -211,10 +464,12 @@ if(sediments==True):
     # thickness of lower crust (m)
     thickness_lower_crust = 10 * 1.0e3
     #Thickness of non cratonic lithosphere
-    thickness_mlit = 120 * 1.0e3
+    thickness_lithospheric_mantle = 85 * 1.0e3
+    #Thickness of asthenosphere
+    thickness_asthenosphere = Lz - (thickness_air + thickness_basalt + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_lithospheric_mantle)
 else:
     # thickness of sticky air layer (m)
-    thickness_sa = 40 * 1.0e3
+    thickness_air = 40 * 1.0e3
     #thickness of basalt layer (m)
     thickness_basalt = 0 * 1.0e3
     # thickness of upper crust (m)
@@ -222,15 +477,18 @@ else:
     # thickness of lower crust (m)
     thickness_lower_crust = 10 * 1.0e3
     #Thickness of non cratonic lithosphere
-    thickness_mlit = 120 * 1.0e3
+    thickness_lithospheric_mantle = 85 * 1.0e3
+    #Thickness of asthenosphere
+    thickness_asthenosphere = Lz - (thickness_air + thickness_basalt + thickness_upper_crust + thickness_lower_crust + thickness_lithospheric_mantle)
 
 # total thickness of lithosphere (m)
 if(sediments==True):
-    thickness_litho = thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_mlit #125 km - reference is the non-cratonic lithosphere
-    thickness_astnc = Lz - (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_mlit)
+    thickness_litho = thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_lithospheric_mantle #125 km - reference is the non-cratonic lithosphere
+    thickness_astnc = Lz - (thickness_air + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_lithospheric_mantle)
 else:
-    thickness_litho = thickness_upper_crust + thickness_lower_crust + thickness_mlit #125 km - reference is the non-cratonic lithosphere
-    thickness_astnc = Lz - (thickness_sa + thickness_upper_crust + thickness_lower_crust + thickness_mlit)
+    thickness_litho = thickness_upper_crust + thickness_lower_crust + thickness_lithospheric_mantle #125 km - reference is the non-cratonic lithosphere
+    thickness_astnc = Lz - (thickness_air + thickness_upper_crust + thickness_lower_crust + thickness_lithospheric_mantle)
+    thickness_asthenosphere = Lz - (thickness_air + thickness_basalt + thickness_upper_crust + thickness_lower_crust + thickness_lithospheric_mantle)
 
 # seed depth bellow base of lower crust (m)
 seed_depth = 3 * 1.0e3 #9 * 1.0e3 #original
@@ -240,289 +498,153 @@ z = np.linspace(Lz, 0, Nz)
 X, Z = np.meshgrid(x, z)
 dz = Lz / (Nz - 1)
 
+
+####################
+# Setting layers  #
+###################
+
 if(sediments==True):
-    interfaces = {
-        "litho_nc": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust+thickness_mlit), #non cratonic lithosphere - this interface starts from the base of lower crust
-        "lower_crust": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust),
-        "seed_base": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust - seed_depth),
-        "seed_top": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust - seed_depth),
-        "upper_crust": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust),
-        "decolement": np.ones(Nx) * (thickness_sa + thickness_sed + thickness_decolement),
-        "sediments": np.ones(Nx) * (thickness_sa + thickness_sed),
-        "basalt": np.ones(Nx) * (thickness_sa + thickness_basalt),
-        "air": np.ones(Nx) * (thickness_sa),
-        }
+    thickness_lithosphere = thickness_basalt + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust + thickness_lithospheric_mantle
 else:
-    interfaces = {
-        "litho_nc": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust+thickness_mlit), #non cratonic lithosphere - this interface starts from the base of lower crust
-        "lower_crust": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust),
-        "seed_base": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust - seed_depth),
-        "seed_top": np.ones(Nx) * (thickness_sa + thickness_upper_crust + thickness_lower_crust - seed_depth),
-        "upper_crust": np.ones(Nx) * (thickness_sa + thickness_upper_crust),
-        "basalt": np.ones(Nx) * (thickness_sa + thickness_basalt),
-        "air": np.ones(Nx) * (thickness_sa),
-        }
+    thickness_lithosphere = thickness_basalt + thickness_upper_crust + thickness_lower_crust + thickness_lithospheric_mantle
 
-#Building seed
-# seed thickness (m)
-thickness_seed = 6 * 1.0e3
-# seed horizontal position (m)
-# x_seed = 800 * 1.0e3
-x_seed = Lx / 2.0
-# x_seed = Lx / 2.0 + 200.0e3
-# seed: number of points of horizontal extent
-n_seed = 6
+asthenosphere = MandyocLayer('asthenosphere', WetOlivine,
+                            density=3378.0,
+                            effective_viscosity_scale_factor=1.0,
+                            radiogenic_heat_production=7.38e-12)
 
+lithospheric_mantle = MandyocLayer('lithospheric_mantle', DryOlivine,
+                                    density=3354.0,
+                                    effective_viscosity_scale_factor=1.0,
+                                    radiogenic_heat_production=9.0e-12,
+                                    base_depth=thickness_air+thickness_upper_crust+thickness_lower_crust+thickness_lithospheric_mantle,
+                                    Nx=Nx)
+
+lower_crust = MandyocLayer('lower_crust', WetQuartz,
+                            density=2800.0,
+                            effective_viscosity_scale_factor=100,
+                            radiogenic_heat_production=2.86e-10,
+                            base_depth=thickness_air+thickness_upper_crust+thickness_lower_crust,
+                            Nx=Nx) 
+
+upper_crust = MandyocLayer('upper_crust', WetQuartz,
+                            density=2700.0,
+                            effective_viscosity_scale_factor=1.0,
+                            radiogenic_heat_production=9.26e-10,
+                            base_depth=thickness_air+thickness_upper_crust,
+                            Nx=Nx)
 if(sediments==True):
-    interfaces["seed_base"][int(Nx * x_seed // Lx - n_seed // 2) : int(Nx * x_seed // Lx + n_seed // 2)] = thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust - seed_depth + thickness_seed // 2
+    sediments = MandyocLayer('sediments', WetQuartz,
+                                density=2700.0,
+                                effective_viscosity_scale_factor=1.0,
+                                radiogenic_heat_production=1.25e-6 / 2700.0,
+                                base_depth=thickness_air+thickness_sed,
+                                Nx=Nx)
 
-    interfaces["seed_top"][int(Nx * x_seed // Lx - n_seed // 2) : int(Nx * x_seed // Lx + n_seed // 2)] = thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust - seed_depth - thickness_seed // 2
+    decolement = MandyocLayer('decolement', Plagioclase,
+                                density=2350.0,
+                                effective_viscosity_scale_factor=0.1,
+                                radiogenic_heat_production=1.25e-6 / 2700.0,
+                                base_depth=thickness_air+thickness_sed+thickness_decolement,
+                                Nx=Nx)
+
+basalt = MandyocLayer('basalt', Basalt,
+                        density=2900.0,
+                        effective_viscosity_scale_factor=1.0,
+                        radiogenic_heat_production=9.0e-11,
+                        base_depth=thickness_air+thickness_basalt,
+                        Nx=Nx)
+
+air = MandyocLayer('air', Air,
+                    density=1.0,
+                    effective_viscosity_scale_factor=1.0,
+                    radiogenic_heat_production=0.0,
+                    base_depth=thickness_air,
+                    Nx=Nx)
+
+####################################
+# Dealing with interface geometry  #
+####################################
+
+if(seed_in_litho):
+    seed_depth = 6 * 1.0e3 #9 * 1.0e3 #original
+    thickness_seed = 12 * 1.0e3
+
+    seed_base = MandyocLayer('seed_base',
+                                 DryOlivine,
+                                 density=3354.0,
+                                #  interface=np.ones(Nx) * (seed_depth + thickness_lower_crust + thickness_upper_crust + thickness_air),
+                                 effective_viscosity_scale_factor=1.0,
+                                 radiogenic_heat_production=9.0e-12,
+                                 base_depth=lower_crust.base_depth+seed_depth,
+                                 Nx=Nx)
+    seed_top = MandyocLayer('seed_top',
+                            DryOlivine,
+                            density=3354.0,
+                            # interface=np.ones(Nx) * (seed_depth + thickness_lower_crust + thickness_upper_crust + thickness_air),
+                            effective_viscosity_scale_factor=1.0,
+                            radiogenic_heat_production=2.86e-10,
+                            base_depth=lower_crust.base_depth+seed_depth,
+                            Nx=Nx) #0.8e-6 / 2800.0)
+    
+    # seed horizontal position (m)
+    x_seed = Lx / 2.0
+    # seed: number of points of horizontal extent
+    n_seed = int(thickness_seed/1.0e3)
+
+    seed_base.interface[int(Nx * x_seed // Lx - n_seed // 2) : int(Nx * x_seed // Lx + n_seed // 2)] = (
+        seed_base.interface[
+            int(Nx * x_seed // Lx - n_seed // 2) : int(Nx * x_seed // Lx + n_seed // 2)
+        ]
+        + thickness_seed // 2
+    )
+
+    seed_top.interface[
+        int(Nx * x_seed // Lx - n_seed // 2) : int(Nx * x_seed // Lx + n_seed // 2)
+    ] = (
+        seed_top.interface[
+            int(Nx * x_seed // Lx - n_seed // 2) : int(Nx * x_seed // Lx + n_seed // 2)
+        ]
+        - thickness_seed // 2
+    )
+
+    if(sediments==True):
+        layers = [asthenosphere, lithospheric_mantle, seed_base, seed_top, lower_crust, upper_crust, decolement, sediments, basalt, air]
+    else:
+        layers = [asthenosphere, lithospheric_mantle, seed_base, seed_top, lower_crust, upper_crust, air]
 else:
-    interfaces["seed_base"][int(Nx * x_seed // Lx - n_seed // 2) : int(Nx * x_seed // Lx + n_seed // 2)] = thickness_sa + thickness_upper_crust + thickness_lower_crust - seed_depth + thickness_seed // 2
+    if(sediments==True):
+        layers = [asthenosphere, lithospheric_mantle, lower_crust, upper_crust, decolement, sediments, basalt, air]
+    else:
+        layers = [asthenosphere, lithospheric_mantle, lower_crust, upper_crust, air]
 
-    interfaces["seed_top"][int(Nx * x_seed // Lx - n_seed // 2) : int(Nx * x_seed // Lx + n_seed // 2)] = thickness_sa + thickness_upper_crust + thickness_lower_crust - seed_depth - thickness_seed // 2
+##################################################
+# Save interfaces.txt to be used in Mandyoc code #
+##################################################
 
-##############################################################################
-#Rheological and Thermal parameters
-##############################################################################
+#Build layer_properties according to the order of the stack_layers
+rheological_symbols = ['C', 'rho', 'H', 'A', 'n', 'Q', 'V']
+rheological_properties = ['effective_viscosity_scale_factor',
+                          'density',
+                          'radiogenic_heat_production',
+                          'pre_exponential_constant',
+                          'power_law_exponent',
+                          'activation_energy',
+                          'activation_volume']
 
-#Viscosity scale factor
-C_air = 1.0
-C_basalt = 1.0
-if(sediments==True):
-    C_sed = 1.0
-    C_dec = 0.1
-C_upper_crust = 1.0
-C_lower_crust = 100.0
-C_seed = 0.1
-C_mlit = 1.0
-C_ast = 1.0
-
-#density (kg/m3)
-rho_air = 1.0
-rho_basalt = 2900.0
-if(sediments==True):
-    rho_sed = 2700.0
-    rho_dec = 2350.0
-rho_upper_crust = 2700.0
-rho_lower_crust = 2800.0
-rho_seed = 2800.0
-rho_mlit = 3330.0 #3354.0 #phanerozoic
-rho_ast = 3378.0
-
-#radiogenic heat production (W/kg)
-H_air = 0.0
-H_basalt = 9.0e-11
-if(sediments==True):
-    H_sed = 1.25e-6 / 2700.0
-    H_dec = 1.25e-6 / 2700.0
-# H_upper_crust = 1.25e-6 / 2700.0 #9.259E-10 #old
-# H_lower_crust = 0.2e-6 / 2800.0 #2.85E-10 #old
-H_upper_crust = 1.67e-6 / 2700.0 #
-H_lower_crust = 0.19e-6 / 2800.0 #
-H_seed = 0.2e-6 / 2800.0
-
-# radiogenic_heat_mlit = True
-radiogenic_heat_mlit = False
-if(radiogenic_heat_mlit):
-    H_mlit = 9.0e-12
-else:
-    H_mlit = 0.0 #9.0e-12
-
-H_ast = 0.0 #Turccote book: 7.38e-12 #Default is 0.0
-
-#Pre exponential constant (Pa**-n s**-1)
-A_air = 1.0E-18
-A_basalt = 8.574e-28
-if(sediments==True):
-    A_sed = 8.574e-28
-    A_dec = 8.574e-28
-A_upper_crust = 8.574e-28
-A_lower_crust = 8.574e-28
-A_seed = 8.574e-28
-A_mlit = 2.4168e-15
-A_ast = 1.393e-14
-
-#Power law exponent
-n_air = 1.0
-n_basalt = 4.0
-if(sediments==True):
-    n_sed = 4.0
-    n_dec = 4.0
-n_upper_crust = 4.0
-n_lower_crust = 4.0
-n_seed = 4.0
-n_mlit = 3.5
-n_ast = 3.0
-
-#Activation energy (J/mol)
-Q_air = 0.0
-Q_basalt = 222.0e3
-if(sediments==True):
-    Q_sed = 222.0e3
-    Q_dec = 222.0e3
-Q_upper_crust = 222.0e3
-Q_lower_crust = 222.0e3
-Q_seed = 222.0e3
-Q_mlit = 540.0e3
-Q_ast = 429.0e3
-
-#Activation volume (m3/mol)
-V_air = 0.0
-V_basalt = 0.0
-if(sediments==True):
-    V_sed = 0.0
-    V_dec = 0.0
-V_upper_crust = 0.0
-V_lower_crust = 0.0
-V_seed = 0.0
-V_mlit = 25.0e-6
-V_ast = 15.0e-6
-
-rheology_mlit = 'dry' #rheology of lithospheric mantle: dry olivine or wet olivine
-# rheology_mlit = 'wet' #rheology of lithospheric mantle: dry olivine or wet olivine
-
-if(rheology_mlit == 'wet'):
-    C_mlit = 100.0
-    A_mlit = A_ast
-    n_mlit = n_ast
-    Q_mlit = Q_ast
-    V_mlit = V_ast
+to_save = []
+for symbol, prop in zip(rheological_symbols, rheological_properties):
+    to_save.append(f"{symbol} {' '.join([str(layer.__dict__[prop]) for layer in layers])}")
 
 with open("interfaces.txt", "w") as f:
-    
-    if(sediments==True):
-        layer_properties = f"""
-            C   {C_ast}   {C_mlit}   {C_lower_crust}   {C_seed}   {C_lower_crust}   {C_upper_crust}   {C_dec}   {C_sed}   {C_basalt}   {C_air}
-            rho {rho_ast} {rho_mlit} {rho_lower_crust} {rho_seed} {rho_lower_crust} {rho_upper_crust} {rho_dec} {rho_sed} {rho_basalt} {rho_air}
-            H   {H_ast}   {H_mlit}   {H_lower_crust}   {H_seed}   {H_lower_crust}   {H_upper_crust}   {H_dec}   {H_sed}   {H_basalt}   {H_air}
-            A   {A_ast}   {A_mlit}   {A_lower_crust}   {A_seed}   {A_lower_crust}   {A_upper_crust}   {A_dec}   {A_sed}   {A_basalt}   {A_air}
-            n   {n_ast}   {n_mlit}   {n_lower_crust}   {n_seed}   {n_lower_crust}   {n_upper_crust}   {n_dec}   {n_sed}   {n_basalt}   {n_air}
-            Q   {Q_ast}   {Q_mlit}   {Q_lower_crust}   {Q_seed}   {Q_lower_crust}   {Q_upper_crust}   {Q_dec}   {Q_sed}   {Q_basalt}   {Q_air}
-            V   {V_ast}   {V_mlit}   {V_lower_crust}   {V_seed}   {V_lower_crust}   {V_upper_crust}   {V_dec}   {V_sed}   {V_basalt}   {V_air}
-        """
-    else:
-        layer_properties = f"""
-            C   {C_ast}   {C_mlit}   {C_lower_crust}   {C_seed}   {C_lower_crust}   {C_upper_crust}   {C_basalt}   {C_air}
-            rho {rho_ast} {rho_mlit} {rho_lower_crust} {rho_seed} {rho_lower_crust} {rho_upper_crust} {rho_basalt} {rho_air}
-            H   {H_ast}   {H_mlit}   {H_lower_crust}   {H_seed}   {H_lower_crust}   {H_upper_crust}   {H_basalt}   {H_air}
-            A   {A_ast}   {A_mlit}   {A_lower_crust}   {A_seed}   {A_lower_crust}   {A_upper_crust}   {A_basalt}   {A_air}
-            n   {n_ast}   {n_mlit}   {n_lower_crust}   {n_seed}   {n_lower_crust}   {n_upper_crust}   {n_basalt}   {n_air}
-            Q   {Q_ast}   {Q_mlit}   {Q_lower_crust}   {Q_seed}   {Q_lower_crust}   {Q_upper_crust}   {Q_basalt}   {Q_air}
-            V   {V_ast}   {V_mlit}   {V_lower_crust}   {V_seed}   {V_lower_crust}   {V_upper_crust}   {V_basalt}   {V_air}
-        """
 
-    for line in layer_properties.split("\n"):
-        line = line.strip()
+    for line in to_save:
         if len(line):
-            f.write(" ".join(line.split()) + "\n")
+            f.write(f"{' '.join(line.split())}\n")
 
     # layer interfaces
-    data = -1 * np.array(tuple(interfaces.values())).T
+    data = -1 * np.array(tuple(layer.interface for layer in layers[1::])).T #excludin asthenosphere interface
     np.savetxt(f, data, fmt="%.1f")
-
-##############################################################################
-# Creating parameter file
-##############################################################################
-
-# high_kappa_in_asthenosphere = True
-high_kappa_in_asthenosphere = False #default
-
-#Convergence criteria
-denok                            = 1.0e-14
-particles_per_element            = 40
-
-#Surface constrains
-# sp_surface_tracking              = True
-sp_surface_tracking              = False
-sp_surface_processes             = False
-
-
-#External inputs: bc velocity, velocity field, precipitation and
-#climate change
-
-velocity_from_ascii              = True
-# velocity_from_ascii              = False
-velocity = 1.0 #cm/yr
-if(velocity_from_ascii == True):
-    variable_bcv                     = True
-else:
-    variable_bcv                     = False
-
-#time constrains 
-if(variable_bcv == True):
-    #first rifting phase
-    # dt_rifting1 = 8.0
-    # dt_rifting1 = 20.0
-    # dt_rifting1 = 25.0
-    # dt_rifting1 = 50.0
-    dt_rifting1 = 100.0
-    
-    ti_quiescence1 = 0 + dt_rifting1 #Myr
-
-    #Time of quiescence1 to and start of convergence to close the ocean basin
-    dt_quiescence1 = 20 #Myr
-    tf_quiescence1 = ti_quiescence1 + dt_quiescence1
-
-    #Closing the ocean basin over dt_rifting1 Myr and starting orogeny to begin the second quiescence phase
-    dt_orogeny = 30.0 #Myr
-    ti_quiescence2 = tf_quiescence1 + dt_rifting1 + dt_orogeny #Myr
-
-    #second quiescence phase after orogeny
-    dt_quiescence2 = 40.0 #Myr
-    tf_quiescence2 = ti_quiescence2 + dt_quiescence2
-
-    time_max = (tf_quiescence2)*1.0e6 #Myr to years
-
-    # time_max = (tf_quiescence + dt_rifting2)*1.0e6 #210.0e6
-else:
-    time_max = 120.0e6
-
-dt_max                           = 10.0e3 #default
-step_print                       = 200 #25
-
-if(sp_surface_processes == True):
-    precipitation_profile_from_ascii = True #False
-    climate_change_from_ascii        = True #False
-else:
-    precipitation_profile_from_ascii = False
-    climate_change_from_ascii        = False 
-
-#step files
-print_step_files                 = True
-
-checkered = False
-
-magmatism = 'on'
-# magmatism = 'off'
-rheol = 19
-
-#velocity bc
-top_normal_velocity                 = 'fixed'         # ok
-top_tangential_velocity             = 'free '         # ok
-bot_normal_velocity                 = 'fixed'         # ok
-bot_tangential_velocity             = 'free'         # ok
-left_normal_velocity                = 'fixed'         # ok
-left_tangential_velocity            = 'fixed'         # ok
-right_normal_velocity               = 'fixed'         # ok
-right_tangential_velocity           = 'fixed'         # ok
-
-# periodic_boundary = True
-periodic_boundary = False
-
-if(periodic_boundary == True):
-    left_normal_velocity                = 'free'         # ok
-    left_tangential_velocity            = 'free '         # ok
-    right_normal_velocity               = 'free'         # ok
-    right_tangential_velocity           = 'free'         # ok
-
-#temperature bc
-top_temperature                     = 'fixed'         # ok
-bot_temperature                     = 'fixed'         # ok
-# left_temperature                    = 'free'          # ok
-left_temperature                    = 'fixed'          # ok
-# right_temperature                   = 'free'          # ok
-right_temperature                   = 'fixed'          # ok
 
 ##############################################################################
 # Parameters file
@@ -563,7 +685,7 @@ step_max                            = 800000        # Maximum time-step of the s
 time_max                            = {time_max}    # Maximum time of the simulation [years]
 dt_max                              = {dt_max}      # Maximum time between steps of the simulation [years]
 step_print                          = {step_print}  # Make file every <step_print>
-sub_division_time_step              = 0.25          # default is 1.0
+sub_division_time_step              = 0.5           # default is 1.0
 initial_print_step                  = 0             # default is 0
 initial_print_max_time              = 1.0e6         # default is 1.0E6 [years]
 # Viscosity
@@ -575,7 +697,7 @@ viscosity_mean_method               = arithmetic      # default is harmonic [har
 viscosity_dependence                = pressure      # default is depth [pressure/depth]
 # External ASCII inputs/outputs
 interfaces_from_ascii               = True          # default is False [True/False]
-n_interfaces                        = {len(interfaces.keys())}           # Number of interfaces int the interfaces.txt file
+n_interfaces                        = {len(layers)-1}           # Number of interfaces int the interfaces.txt file
 variable_bcv                        = {variable_bcv} #False         # default is False [True/False]
 temperature_from_ascii              = True         # default is False [True/False]
 velocity_from_ascii                 = {velocity_from_ascii} #False      # default is False [True/False]
@@ -599,6 +721,7 @@ non_linear_method                   = on            # ok
 adiabatic_component                 = on            # ok
 radiogenic_component                = on            # ok
 magmatism                           = {magmatism}           # ok
+magmatism_extraction                = {magmatism_extraction}
 export_lithology = True
 magmatic_layer = 6
 # Velocity boundary conditions
@@ -617,11 +740,9 @@ top_temperature                     = {top_temperature}         # ok
 bot_temperature                     = {bot_temperature}         # ok
 left_temperature                    = {left_temperature}         # ok
 right_temperature                   = {right_temperature}         # ok
-rheology_model                      = {rheol}             # ok
-
+rheology_model                      = {rheology_model}             # ok
 T_initial                           = 3             # ok
 """
-
 # Create the parameter file
 with open("param.txt", "w") as f:
     for line in params.split("\n"):
@@ -634,110 +755,222 @@ with open("param.txt", "w") as f:
 # Initial temperature field
 ##############################################################################
 
-# scenario = '/Doutorado/cenarios/mandyoc/stable/lit80km/stable_PT200_rheol19_c1250_C1_HprodAst/'
-# scenario_name = scenario.split('/')[-2]
-# print(scenario_name)
-
-DeltaT = 0
-# DeltaT = 200
-# DeltaT = 290
-# DeltaT = 350
-
-# preset = True
-preset = False
-
-#Force cold cratonic keel
-# keel_adjust = True
-# keel_adjust = False
-
 if(preset == False):
-    T = 1300 * (z - thickness_sa) / (thickness_litho)  # Temperature
-    
-    # T = 1300 * (z - thickness_sa) / (130*1.0E3)  # Temperature of 1300 isotherm bellow the lithosphere
+    T = 1300 * (z - thickness_air) / (thickness_lithosphere)  # Temperature of 1300 isotherm bellow the lithosphere
 
     ccapacity = 1250*1.0 #937.5=75% #J/kg/K? #DEFAULT
-    
-    # TP = 1262 #mantle potential temperature
-    TP = 1350
-    # TP = 1400
-    # TP = 1450
 
-    Ta = (TP / np.exp(-10 * 3.28e-5 * (z - thickness_sa) / ccapacity)) + DeltaT #Temperature profile for asthenosphere
+    TP = 1262 #mantle potential temperature
 
-    T[T < 0.0] = 0.0 #forcing negative temperatures to 0
-    cond1 = Ta<T #VICTOR - selecting where asthenosphere temperature is lower than lithospheric temperature
-    T[T > Ta] = Ta[T > Ta] #apply the temperature of asthenosphere (Ta) where temperature (T) is greater than Ta
+    Ta = (TP / np.exp(-10 * 3.28e-5 * (z - thickness_air) / ccapacity)) + DeltaT
+    # Ta = 1262 / np.exp(-10 * 3.28e-5 * (z - thickness_air) / ccapacity)steady s
 
-    # kappa = 0.75*1.0e-6 #thermal diffusivity
+    T[T < 0.0] = 0.0
+    cond1 = Ta<T #VICTOR
+    T[T > Ta] = Ta[T > Ta] #apply the temperature of asthenosphere Ta where temperature T is greater than Ta, 
+
     kappa = 1.0e-6 #thermal diffusivity
 
     H = np.zeros_like(T)
-    if(sediments==True):
-        cond = (z >= thickness_sa) & (z < thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust)  # upper crust
-    else:
-        cond = (z >= thickness_sa) & (z < thickness_sa + thickness_upper_crust + thickness_lower_crust)  # upper crust
-    H[cond] = H_upper_crust
 
-    if(sediments==True):
-        cond = (z >= thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust) & (z < thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust)  # lower crust
-    else:
-        cond = (z >= thickness_sa + thickness_upper_crust) & (z < thickness_sa + thickness_upper_crust + thickness_lower_crust)  # lower crust
+    cond = (z >= thickness_air) & (z < thickness_upper_crust + thickness_air)  # upper crust
+    H[cond] = upper_crust.radiogenic_heat_production
 
-    H[cond] = H_lower_crust
+    cond = (z >= thickness_upper_crust + thickness_air) & (
+        z < thickness_lower_crust + thickness_upper_crust + thickness_air
+    )  # lower crust
+    H[cond] = lower_crust.radiogenic_heat_production
 
-    #Conductive model
     Taux = np.copy(T)
-
     t = 0
     dt = 5000
     dt_sec = dt * 365 * 24 * 3600
-    # cond = (z > thickness_sa + thickness_litho) | (T == 0)  # (T > 1300) | (T == 0) #OLD
+    # cond = (z > thickness_air + thickness_lithosphere) | (T == 0)  # (T > 1300) | (T == 0) #OLD
     cond = cond1 | (T == 0)  # (T > 1300) | (T == 0) #VICTOR
     dz = Lz / (Nz - 1)
+
     
-    while t < 2000.0e6:
-        #non-cratonic region
+    while t < 500.0e6:
         T[1:-1] += (
             kappa * dt_sec * ((T[2:] + T[:-2] - 2 * T[1:-1]) / dz ** 2)
             + H[1:-1] * dt_sec / ccapacity
         )
         T[cond] = Taux[cond]
-
         t = t + dt
-
+    
     T = np.ones_like(X) * T[:, None] #(Nz, Nx)
+
+    # print('shape T: ', np.shape(T))
 
     # Save the initial temperature file
     np.savetxt("input_temperature_0.txt", np.reshape(T, (Nx * Nz)), header="T1\nT2\nT3\nT4")
-    
+
 else:
-    print("Need to implement!")
+    dz = Lz / (Nz - 1)
+
+    from_dataset = True
+    # from_dataset = False
+
+    if(from_dataset == True):
+
+        # external_media = 'Joao_Macedo'
+        # fpath = f"{machine_path}/{external_media}{scenario}"
+
+        dataset = xr.open_dataset(f"{scenario}/_output_temperature.nc")
+        
+        Nx_aux = int(dataset.nx)
+        Nz_aux = int(dataset.nz)
+        Lx_aux = float(dataset.lx)
+        Lz_aux = float(dataset.lz)
+
+        x_aux = np.linspace(0, Lx_aux, Nx_aux)
+        z_aux = np.linspace(Lz_aux, 0, Nz_aux)
+        xx_aux, zz_aux  = np.meshgrid(x_aux, z_aux)
+
+        time = dataset.time[-1]
+        Datai = dataset.temperature[-1].values.T
+    else:
+        fpath = f"{scenario}/"
+        Nx_aux, Nz_aux, Lx_aux, Lz_aux = read_params(fpath)
+
+        x_aux = np.linspace(0, Lx_aux, Nx_aux)
+        z_aux = np.linspace(Lz_aux, 0, Nz_aux)
+        xx_aux, zz_aux  = np.meshgrid(x_aux, z_aux)
+
+        steps = sorted(glob.glob(fpath+"time_*.txt"), key=os.path.getmtime)
+        step_final = int(steps[-1].split('/')[-1][5:-4]) #step of final thermal structure
+        
+        time_fname = fpath + 'time_' + str(step_final) + '.txt'
+        time = np.loadtxt(time_fname, usecols=2, max_rows=1)
+
+        Datai = read_data('temperature', step_final, Nz_aux, Nx_aux, fpath) #(read final thermal structure (Nz, Nx)
+    
+
+    #Setting procedure with external temperature field. Choose between:
+        ##Use the horizontal mean of temperature from final step of used scenario (horizontal_mean)
+        ##or
+        ##Use the original thermal state used as input interpolated on new grid Nx x Nz (interp2d)
+
+
+    interp_method = 'horizontal_mean' #using interp1d
+    # interp_method = 'interp2d'
+
+    if(interp_method == 'horizontal_mean'):
+        datai_mean = np.mean(Datai, axis=1) #horizontal mean
+
+        f = interp1d(z_aux, datai_mean) #funcion to interpolate the temperature field
+        datai_mean_interp = f(z) #applying the function to obtain the temperature field to the new mesh
+
+        zcond = z <= 40.0e3
+        datai_mean_interp[datai_mean_interp <= 1.0e-7] = 0.0 #dealing with <=0 values inherited from interpolation
+        datai_mean_interp[zcond] = 0.0
+
+        T = np.zeros((Nx, Nz)) #(Nx, Nz) = transpose of original shape (Nz, Nx)
+        
+        for i in range(Nx): #len(Nx) 
+            T[i, :] = datai_mean_interp
+
+        T = T.T #(Nz,Nx): transpose T to plot below
+        # print('shape T: ', np.shape(T))
+    
+    else:
+        interp_kind = 'linear'
+        # interp_kind = 'cubic'
+        # interp_kind = 'quintic'
+
+        f = interp2d(x_aux, z_aux, Datai, kind=interp_kind)
+        temper_interp = f(x, z) #(Nz, Nx)
+        temper_interp[temper_interp <= 1.0e-7] = 0.0 #dealing with <=0 values inherited from interpolation
+        
+        #Setting temperature on vertical boundaries. Choose between:
+        ##Use the mean temperature from final step of used scenario (mean)
+        ##or
+        ##Use the original thermal state used as input interpolated on new Nz (original)
+        bound = 'mean'
+        # bound = 'original'
+
+        if(bound == 'mean'):
+            #Calc horizontal mean from interpolated field
+            temper_interp_mean = np.mean(temper_interp, axis=1)
+            zcond = z >= 660.0e3 #temperature field is from bottom to top
+            temper_interp_mean[zcond] = 0.0
+            
+            if(mean_litho==True):
+
+                if(thickness_lithosphere == 80.0e3):
+                    zcond1 = (z >= 660.0e3-thickness_lithosphere) & (z < 660.0e3)
+                else:
+                    zcond1 = (z >= 560.0e3) & (z < 660.0e3)
+                temper_interp = temper_interp.T #Change to (Nx, Nz)
+                
+                for i in range(Nx): #len(Nx)
+                    temper_interp[i][zcond1] = temper_interp_mean[zcond1]
+
+                temper_interp = temper_interp.T #Return to (Nz, Nx)
+
+            #Apply horizontal mean to vertical boundaries
+            for i in range(Nz):
+                temper_interp[i][0] = temper_interp_mean[i]
+                temper_interp[i][-1] = temper_interp_mean[i]
+
+        else:
+            #Cat the initial thermal state from scenario
+            step_initial = int(steps[0].split('/')[-1][5:-4])
+            time_fname = fpath + 'time_' + str(step_initial) + '.txt'
+            time = np.loadtxt(time_fname, usecols=2, max_rows=1)
+            T0i = read_data('temperature', step_initial, Nz_aux, Nx_aux, fpath)
+
+            #interpolate in new grid
+            T0 = T0i[:, 0]
+            f = interp1d(z_aux, T0)
+            T0_interp = f(z)
+            T0_interp[T0_interp<=1.0e-7] = 0.0
+            T0_interp = T0_interp[::-1]
+            
+            #apply to boundaries
+            for i in range(Nz):
+                temper_interp[i][0] = T0_interp[i]
+                temper_interp[i][-1] = T0_interp[i]
+         
+        T = temper_interp[::-1]
+
+    np.savetxt("input_temperature_0.txt", np.reshape(T, (Nx * Nz)), header="T1\nT2\nT3\nT4")
 
 ##############################################################################
 # Boundary condition - velocity
 ##############################################################################
-if(velocity_from_ascii == True):
-    fac_air = 10.0e3
+velocity = 1.0 #cm/yr
 
-    # 1 cm/year
+if(velocity_from_ascii == True):
+
+    fac_air = 10.0e3
+    #1.0 cm/yr
+    # vL = 0.005 / (365 * 24 * 3600)  # m/s
+    
+    # 0.5 cm/year
+    # vL = 0.0025 / (365 * 24 * 3600)  # m/s
+    
+    # 0.25 cm/year
+    # vL = 0.00125 / (365 * 24 * 3600)  # m/s
+
     vL = (0.5*velocity/100) / (365 * 24 * 3600)  # m/s
 
-    h_v_const = thickness_mlit + 20.0e3  #thickness with constant velocity 
-    ha = Lz - thickness_sa - h_v_const  # difference
+    h_v_const = thickness_lithosphere + 20.0e3  #thickness with constant velocity 
+    ha = Lz - thickness_air - h_v_const  # difference
 
     vR = 2 * vL * (h_v_const + fac_air + ha) / ha  # this is to ensure integral equals zero
 
     VX = np.zeros_like(X)
-    cond = (Z > h_v_const + thickness_sa) & (X == 0)
-    VX[cond] = vR * (Z[cond] - h_v_const - thickness_sa) / ha
+    cond = (Z > h_v_const + thickness_air) & (X == 0)
+    VX[cond] = vR * (Z[cond] - h_v_const - thickness_air) / ha
 
-    cond = (Z > h_v_const + thickness_sa) & (X == Lx)
-    VX[cond] = -vR * (Z[cond] - h_v_const - thickness_sa) / ha
+    cond = (Z > h_v_const + thickness_air) & (X == Lx)
+    VX[cond] = -vR * (Z[cond] - h_v_const - thickness_air) / ha
 
     cond = X == Lx
     VX[cond] += +2 * vL
 
-    cond = Z <= thickness_sa - fac_air
+    cond = Z <= thickness_air - fac_air
     VX[cond] = 0
 
     # print(np.sum(VX))
@@ -763,7 +996,6 @@ if(velocity_from_ascii == True):
 
     np.savetxt("vel_bc.txt", vels_bc.T)
     np.savetxt("velz_bc.txt", vz0.T)
-    # print(np.sum(v0))
 
     VVX = np.copy(np.reshape(VX, Nx * Nz))
     VVZ = np.copy(np.reshape(VZ, Nx * Nz))
@@ -778,29 +1010,67 @@ if(velocity_from_ascii == True):
     # Create the initial velocity file
     np.savetxt("input_velocity_0.txt", v, header="v1\nv2\nv3\nv4")
 
-    if(variable_bcv == True):
-        var_bcv = f""" 5
-                    {ti_quiescence1} 0.01
-                    {tf_quiescence1} -100.0
-                    {ti_quiescence2} 0.01
-                    {tf_quiescence2} -100.0
-                    {time_max/1.0e6} 0.01
-                    """
+# print(np.sum(v0))
 
-        # Create the parameter file
-        with open("scale_bcv.txt", "w") as f:
-            for line in var_bcv.split("\n"):
-                line = line.strip()
-                if len(line):
-                    f.write(" ".join(line.split()) + "\n")
+VVX = np.copy(np.reshape(VX, Nx * Nz))
+VVZ = np.copy(np.reshape(VZ, Nx * Nz))
 
-##############################################################################
-# Surface processes
-##############################################################################
+v = np.zeros((2, Nx * Nz))
+
+v[0, :] = VVX
+v[1, :] = VVZ
+
+v = np.reshape(v.T, (np.size(v)))
+
+# Create the initial velocity file
+np.savetxt("input_velocity_0.txt", v, header="v1\nv2\nv3\nv4")
+
+if(variable_bcv == True):
+    #first rifting phase
+    if(scenario_name == 'AR8'):
+        dt_rifting1 = 8.0
+    if(scenario_name == 'AR20'):
+        dt_rifting1 = 20.0
+    if(scenario_name == 'AR25'):
+        dt_rifting1 = 25.0
+    if(scenario_name == 'AR50'):
+        dt_rifting1 = 50.0
+    if(scenario_name == 'AR100'):
+        dt_rifting1 = 100.0
+    if(scenario_name == 'AR150'):
+        dt_rifting1 = 150.0
+    
+    ti_quiescence1 = 0 + dt_rifting1 #Myr
+
+    #Time of quiescence1 to and start of convergence to close the ocean basin
+    dt_quiescence1 = 20 #Myr
+    tf_quiescence1 = ti_quiescence1 + dt_quiescence1
+
+    #Closing the ocean basin over dt_rifting1 Myr and starting orogeny to begin the second quiescence phase
+    dt_orogeny = 30.0 #Myr
+    ti_quiescence2 = tf_quiescence1 + dt_rifting1 + dt_orogeny #Myr
+
+    #second quiescence phase after orogeny
+    dt_quiescence2 = 40.0 #Myr
+    tf_quiescence2 = ti_quiescence2 + dt_quiescence2
+
+    time_max = (tf_quiescence2)*1.0e6 #Myr to years
+
+    # time_max = (tf_quiescence + dt_rifting2)*1.0e6 #210.0e6
+else:
+    time_max = 120.0e6
+
+
 
 if(sp_surface_processes == True):
     if(climate_change_from_ascii == True):
         #When climate effects will start to act - scaling to 1
+        # climate = f'''
+        #         2
+        #         0 0.0
+        #         10 0.02
+        #     '''
+
         climate = f'''
                 2
                 0 0.0
@@ -819,46 +1089,17 @@ if(sp_surface_processes == True):
         prec = 0.0008*np.exp(-(x-Lx/2)**6/(Lx/(1))**6) #Lx km
         # prec = 0.0008*np.exp(-(x-Lx/2)**6/(Lx/8)**6) #original
         # prec = 0.0008*np.exp(-(x-Lx/2)**6/(Lx/(8*2))**6) #100 km
-        # prec = 0.0008*np.exp(-(x-Lx/2)**6/(Lx/(8*4))**6) #50 km
-
-        plt.figure(figsize=(12, 9), constrained_layout=True)
-        plt.xlim([0, Lx/1.0E3])
-        plt.ylim([0, np.max(prec)])
-        plt.xlabel("km", fontsize=label_size)
-        plt.ylabel("Precipitation", fontsize=label_size)
-        plt.plot(x/1000,prec)
-        plt.grid(':k', alpha=0.7)
-
-        figname='precipitation_profile.png'
-        plt.savefig(figname, dpi=300)
+        # prec = 0.0008*np.exp(-(x-Lx/2)**6/(Lx/(8*4))**6) #50 
 
         np.savetxt("precipitation.txt", prec, fmt="%.8f")
 
-
-
-
-##########plot temperature field with countourf
-# plt.close()
-# fig, ax0 = plt.subplots(nrows=1, ncols=1, constrained_layout=True, figsize=(16, 8), sharey=True)
-# thickness_air = 40
-# im = ax0.contourf(X / 1.0e3, (Z - thickness_air) / 1.0e3, T,
-#                   levels=np.arange(0, np.max(T) + 100, 100))
-# ax0.set_ylim((Lz - thickness_air) / 1.0e3, -thickness_air / 1000)
-# ax0.set_ylabel("km", fontsize=label_size)
-# ax0.set_xlabel("$^\circ$C", fontsize=label_size)
-# cbar = fig.colorbar(im, orientation='horizontal', ax=ax0)
-# cbar.set_label("Temperature [°C]")
-# fig.savefig('initial_temperature.png', dpi=300)
-
-##############################################################################
-#
-# Creating a single plot with scenario infos
-#
-##############################################################################
+######################################################################################
+#Creating numerical setup figure to visualize the initial configuration of the model #
+######################################################################################
 
 plt.close()
 fig, axs = plt.subplots(1, 1, figsize = (14, 6))
-ylimplot = [-Lz/1000+thickness_sa/1000, 0+thickness_sa/1000]
+ylimplot = [-Lz/1000+thickness_air/1000, 0+thickness_air/1000]
 #plot scenario layers
 #layers colour scheme
 cr = 255.
@@ -880,7 +1121,7 @@ if(sediments==True):
         'seed_top': color_lc,
         'seed_base': color_lc,
         'lower_crust': color_lit,
-        'litho_nc': color_ast,
+        'lithospheric_mantle': color_ast,
     }
 else:
     # colors = {'air': color_uc,
@@ -897,37 +1138,52 @@ else:
     #     'litho_nc': 'Asthenosphere',#'Upper cratonic lithospheric mantle',
     # }
 
-    colors = {'air': color_basalt,
+    colors = {'air': color_uc,
               'basalt': color_uc,
               'upper_crust': color_lc,
-              'seed_top': color_lc,
-              'seed_base': color_lc,
+              'seed_top': color_lit,
+              'seed_base': color_lit,
               'lower_crust': color_lit,
-              'litho_nc': color_ast,}
+              'lithospheric_mantle': color_ast,}
     labels = {
         'air': 'Basalt',
         'basalt':'Upper crust',
         'upper_crust': 'Lower crust',
         'lower_crust': 'Lithospheric mantle',
-        'litho_nc': 'Asthenosphere',#'Upper cratonic lithospheric mantle',
+        'lithospheric_mantle': 'Asthenosphere',#'Upper cratonic lithospheric mantle',
     }
+layers_aux = layers[::-1]
 
-for interface in list(interfaces.items())[::-1]:
-    label, layer = interface[0], interface[1]
-    # if(label!='litho_crat_up'):
-    #     axs.plot(x/1000, (-layer)/1000+thickness_sa/1000, color='k', lw=0.5)
-    # if(label=='seed_base' or label=='seed_top'):
-    #     axs.plot(x/1000, (-layer)/1000+thickness_sa/1000, color='k', lw=0.5)
-    if(label=='seed_top'):
-        axs.plot(x_seed/1000, -(thickness_upper_crust + thickness_lower_crust - seed_depth)/1000, 'x', color='k', lw=1.0)
-
-    if(label == 'seed_top' or label == 'seed_base'):
-        label = 'lower_crust'
-        continue
-    if(label == 'litho_crat_up'):
+for layer in layers_aux[:-1:]:
+    layer_name = str(layer.layer_label)
+    # print(layer_name)
+    if(layer_name == 'basalt' or layer_name == 'seed_top'):
         continue
 
-    axs.fill_between(x/1000, -layer/1000+thickness_sa/1000, -Lz/1000+thickness_sa/1000, color=colors[label])#, label=labels[label])
+    if(layer_name == 'seed_base'):
+        plt.plot(x_seed/1.0E3, (-seed_depth-thickness_air)/1.0E3, 'x', color='xkcd:black', lw=1.0)
+    else:
+        axs.plot(x/1.0E3, (-layer.interface+thickness_air)/1.0E3, color='xkcd:black')
+        layer_name = str(layer.layer_label)
+        # axs.plot(x/1.0E3, (-layer.interface+thickness_air)/1.0E3, label=layer_name, lw=2)
+        axs.fill_between(x/1000, -layer.interface/1000+thickness_air/1000, -Lz/1000+thickness_air/1000, color=colors[layer_name])#, label=labels[label])
+
+# for interface in list(interfaces.items())[::-1]:
+#     label, layer = interface[0], interface[1]
+#     # if(label!='litho_crat_up'):
+#     #     axs.plot(x/1000, (-layer)/1000+thickness_air/1000, color='k', lw=0.5)
+#     # if(label=='seed_base' or label=='seed_top'):
+#     #     axs.plot(x/1000, (-layer)/1000+thickness_air/1000, color='k', lw=0.5)
+#     if(label=='seed_top'):
+#         axs.plot(x_seed/1000, -(thickness_upper_crust + thickness_lower_crust - seed_depth)/1000, 'x', color='k', lw=1.0)
+
+#     if(label == 'seed_top' or label == 'seed_base'):
+#         label = 'lower_crust'
+#         continue
+#     if(label == 'litho_crat_up'):
+#         continue
+
+    # axs.fill_between(x/1000, -layer/1000+thickness_air/1000, -Lz/1000+thickness_air/1000, color=colors[label])#, label=labels[label])
 
 dx = Lx/(Nx-1)
 axs.set_xlim(0, Lx/1000)
@@ -945,25 +1201,25 @@ colors_legend = {'air': color_air,
                  'seed_top': color_lc,
                  'seed_base': color_lc,
                  'lower_crust': color_lc,
-                 'litho_nc': color_lit,
+                 'lithospheric_mantle': color_lit,
                  'asthenosphere': color_ast,}
 
 if(sediments==True):
     labels_legend = {
-        'air': f"Sticky air\n{C_air:.0f} x air\n"+fr"$\rho$ = {rho_air:.0f} kg/m³"+f"\n$h$={thickness_sa/1.0E3:.0f} km",
-        'sediments': f"Sediments\n{C_sed:.0f} x wet quartz\n"+fr"$\rho$ = {rho_sed:.0f} kg/m³"+f"\nh={thickness_sed/1.0E3:.0f} km",
-        'decolement': f"Decolement\n{C_dec:.1f} x wet quartz\n"+fr"$\rho$ = {rho_dec:.0f} kg/m³"+f"\nh={thickness_decolement/1.0E3:.0f} km",
-        'upper_crust': f"Upper crust\n{C_upper_crust:.0f} x wet quartz\n"+fr"$\rho$ = {rho_upper_crust:.0f} kg/m³"+f"\nh={thickness_upper_crust/1.0E3:.0f} km",
-        'lower_crust': f"Lower crust\n{C_lower_crust:.0f} x wet quartz\n"+fr"$\rho$ = {rho_lower_crust:.0f} kg/m³"+f"\nh={thickness_lower_crust/1.0E3:.0f} km",
-        'litho_nc': f"Lithospheric\nmantle\n{C_mlit:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit:.0f} kg/m³"+f"\nh={thickness_mlit/1.0E3:.0f} km",
-        'asthenosphere': f"Asthenosphere\n{C_ast:.0f} x wet olivine\n"+fr"$\rho$ = {rho_ast:.0f} kg/m³"+f"\nh={thickness_astnc/1.0E3:.0f} km"}
+        'air': f"Sticky air\n{air.effective_viscosity_scale_factor:.0f} x air\n"+fr"$\rho$ = {air.density:.0f} kg/m³"+f"\n$h$={thickness_air/1.0E3:.0f} km",
+        'sediments': f"Sediments\n{sediments.effective_viscosity_scale_factor:.0f} x wet quartz\n"+fr"$\rho$ = {sediments.density:.0f} kg/m³"+f"\nh={thickness_sed/1.0E3:.0f} km",
+        'decolement': f"Decolement\n{decolement.effective_viscosity_scale_factor:.1f} x wet quartz\n"+fr"$\rho$ = {decolement.density:.0f} kg/m³"+f"\nh={thickness_decolement/1.0E3:.0f} km",
+        'upper_crust': f"Upper crust\n{upper_crust.effective_viscosity_scale_factor:.0f} x wet quartz\n"+fr"$\rho$ = {upper_crust.density:.0f} kg/m³"+f"\nh={thickness_upper_crust/1.0E3:.0f} km",
+        'lower_crust': f"Lower crust\n{lower_crust.effective_viscosity_scale_factor:.0f} x wet quartz\n"+fr"$\rho$ = {lower_crust.density:.0f} kg/m³"+f"\nh={thickness_lower_crust/1.0E3:.0f} km",
+        'lithospheric_mantle': f"Lithospheric\nmantle\n{lithospheric_mantle.effective_viscosity_scale_factor:.0f} x dry olivine\n"+fr"$\rho$ = {lithospheric_mantle.density:.0f} kg/m³"+f"\nh={thickness_lithospheric_mantle/1.0E3:.0f} km",
+        'asthenosphere': f"Asthenosphere\n{asthenosphere.effective_viscosity_scale_factor:.0f} x wet olivine\n"+fr"$\rho$ = {asthenosphere.density:.0f} kg/m³"+f"\nh={thickness_asthenosphere/1.0E3:.0f} km"}
 else:
     labels_legend = {
-        'air': f"Sticky air\n{C_air:.0f} x air\n"+fr"$\rho$ = {rho_air:.0f} kg/m³"+f"\n$h$ = {thickness_sa/1.0E3:.0f} km",
-        'upper_crust': f"Upper crust\n{C_upper_crust:.0f} x wet quartz\n"+fr"$\rho$ = {rho_upper_crust:.0f} kg/m³"+f"\n$h$ = {thickness_upper_crust/1.0E3:.0f} km",
-        'lower_crust': f"Lower crust\n{C_lower_crust:.0f} x wet quartz\n"+fr"$\rho$ = {rho_lower_crust:.0f} kg/m³"+f"\n$h$ = {thickness_lower_crust/1.0E3:.0f} km",
-        'litho_nc': f"Lithospheric\nmantle\n{C_mlit:.0f} x dry olivine\n"+fr"$\rho$ = {rho_mlit:.0f} kg/m³"+f"\n$h$ = {thickness_mlit/1.0E3:.0f} km",
-        'asthenosphere': f"Asthenosphere\n{C_ast:.0f} x wet olivine\n"+fr"$\rho$ = {rho_ast:.0f} kg/m³"+f"\n$h$ = {thickness_astnc/1.0E3:.0f} km"}
+        'air': f"Sticky air\n{air.effective_viscosity_scale_factor:.0f} x air\n"+fr"$\rho$ = {air.density:.0f} kg/m³"+f"\n$h$ = {thickness_air/1.0E3:.0f} km",
+        'upper_crust': f"Upper crust\n{upper_crust.effective_viscosity_scale_factor:.0f} x wet quartz\n"+fr"$\rho$ = {upper_crust.density:.0f} kg/m³"+f"\n$h$ = {thickness_upper_crust/1.0E3:.0f} km",
+        'lower_crust': f"Lower crust\n{lower_crust.effective_viscosity_scale_factor:.0f} x wet quartz\n"+fr"$\rho$ = {lower_crust.density:.0f} kg/m³"+f"\n$h$ = {thickness_lower_crust/1.0E3:.0f} km",
+        'lithospheric_mantle': f"Lithospheric\nmantle\n{lithospheric_mantle.effective_viscosity_scale_factor:.0f} x dry olivine\n"+fr"$\rho$ = {lithospheric_mantle.density:.0f} kg/m³"+f"\n$h$ = {thickness_lithospheric_mantle/1.0E3:.0f} km",
+        'asthenosphere': f"Asthenosphere\n{asthenosphere.effective_viscosity_scale_factor:.0f} x wet olivine\n"+fr"$\rho$ = {asthenosphere.density:.0f} kg/m³"+f"\n$h$ = {thickness_asthenosphere/1.0E3:.0f} km"}
 
 legend_elements = []
 for key in labels_legend.keys():
@@ -984,11 +1240,11 @@ leg = axs.legend(handles=legend_elements,
 
 #Indicating weak seed position
 xpos_seed = x_seed/Lx
-correction = 0.94
+correction = 0.90
 if(sediments==True):
-    ypos_seed = correction*(1-(thickness_sa + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust)/Lz)
+    ypos_seed = correction*(1-(thickness_air + thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust)/Lz)
 else:
-    ypos_seed = correction*(1-(thickness_sa + thickness_upper_crust + thickness_lower_crust)/Lz)
+    ypos_seed = correction*(1-(thickness_air + thickness_upper_crust + thickness_lower_crust)/Lz)
 axs.text(xpos_seed, ypos_seed, f'weak seed\n{thickness_seed/1000:.0f}x{thickness_seed/1000:.0f} km²', color='k', fontsize=12, ha='center', va='center', transform=axs.transAxes)
 
 
@@ -999,7 +1255,7 @@ axt = axs.inset_axes((0.205,
                       0.18,
                       1))
 
-axt.plot(T[:, idx_center], (-z + thickness_sa) / 1.0e3, "-r")# label=r'T$_{\mathrm{non-cratonic}}$')
+axt.plot(T[:, idx_center], (-z + thickness_air) / 1.0e3, "-r")# label=r'T$_{\mathrm{non-cratonic}}$')
 axt.grid(visible=True, axis='x',which='both',ls='--',color='red',alpha=0.3)
 axt.set_ylim(ylimplot)
 axt.set_yticks([])
@@ -1020,122 +1276,115 @@ axt.set_title('Temperature [°C]',color='k')
 #    Yield Strength Envelope   #
 ################################
 
-Qnc = np.zeros_like(z)
-Anc = np.zeros_like(z)
-nnc = np.zeros_like(z)
-Vnc = np.zeros_like(z)
-Cnc = np.zeros_like(z)
-rhonc = np.zeros_like(z)
-
-Qc = np.zeros_like(z)
-Ac = np.zeros_like(z)
-nc = np.zeros_like(z)
-Vc = np.zeros_like(z)
-Cc = np.zeros_like(z)
-rhoc = np.zeros_like(z)
+Q = np.zeros_like(z)
+A = np.zeros_like(z)
+n = np.zeros_like(z)
+V = np.zeros_like(z)
+C = np.zeros_like(z)
+rho = np.zeros_like(z)
 
 zaux = z
 if(sediments==True):
-    air = zaux < thickness_sa
-    sed = (zaux>thickness_sa) & (zaux<thickness_sa+thickness_sed)
-    dec = (zaux>thickness_sa+thickness_sed) & (zaux<thickness_sa+thickness_sed+thickness_decolement)
-    uc =  (zaux>=thickness_sa+thickness_sed+thickness_decolement) & (zaux<thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust)
-    lc =  (zaux>=thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust) & (zaux<thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust)
-    lm =  (zaux>=thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust) & (zaux<=thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_mlit)
-    astnc = zaux>thickness_sa+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_mlit 
+    sa = zaux < thickness_air
+    sed = (zaux>thickness_air) & (zaux<thickness_air+thickness_sed)
+    dec = (zaux>thickness_air+thickness_sed) & (zaux<thickness_air+thickness_sed+thickness_decolement)
+    uc =  (zaux>=thickness_air+thickness_sed+thickness_decolement) & (zaux<thickness_air+thickness_sed+thickness_decolement+thickness_upper_crust)
+    lc =  (zaux>=thickness_air+thickness_sed+thickness_decolement+thickness_upper_crust) & (zaux<thickness_air+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust)
+    lm =  (zaux>=thickness_air+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust) & (zaux<=thickness_air+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_lithospheric_mantle)
+    astnc = zaux>thickness_air+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_lithospheric_mantle 
     
     #non cratonic rheological properties
-    Cnc[air] = C_air
-    Cnc[sed] = C_sed
-    Cnc[dec] = C_dec
-    Cnc[uc] = C_upper_crust
-    Cnc[lc] = C_lower_crust
-    Cnc[lm] = C_mlit
-    Cnc[astnc] = C_ast
+    Cnc[sa] = air.effective_viscosity_scale_factor
+    Cnc[sed] = sediments.effective_viscosity_scale_factor
+    Cnc[dec] = decolement.effective_viscosity_scale_factor
+    Cnc[uc] = upper_crust.effective_viscosity_scale_factor
+    Cnc[lc] = lower_crust.effective_viscosity_scale_factor
+    Cnc[lm] = lithospheric_mantle.effective_viscosity_scale_factor
+    Cnc[astnc] = asthenosphere.effective_viscosity_scale_factor
 
-    rhonc[air] = rho_air
-    rhonc[sed] = rho_sed
-    rhonc[dec] = rho_dec
-    rhonc[uc] = rho_upper_crust
-    rhonc[lc] = rho_lower_crust
-    rhonc[lm] = rho_mlit
-    rhonc[astnc] = rho_ast
+    rhonc[sa] = air.density
+    rhonc[sed] = sediments.density
+    rhonc[dec] = decolement.density
+    rhonc[uc] = upper_crust.density
+    rhonc[lc] = lower_crust.density
+    rhonc[lm] = lithospheric_mantle.density
+    rhonc[astnc] = asthenosphere.density
 
-    Anc[air] = A_air
-    Anc[sed] = A_sed
-    Anc[dec] = A_dec
-    Anc[uc] = A_upper_crust
-    Anc[lc] = A_lower_crust
-    Anc[lm] = A_mlit
-    Anc[astnc] = A_ast
+    Anc[sa] = air.pre_exponential_constant
+    Anc[sed] = sediments.pre_exponential_constant
+    Anc[dec] = decolement.pre_exponential_constant
+    Anc[uc] = upper_crust.pre_exponential_constant
+    Anc[lc] = lower_crust.pre_exponential_constant
+    Anc[lm] = lithospheric_mantle.pre_exponential_constant
+    Anc[astnc] = asthenosphere.pre_exponential_constant
 
-    nnc[air] = n_air
-    nnc[sed] = n_sed
-    nnc[dec] = n_dec
-    nnc[uc] = n_upper_crust
-    nnc[lc] = n_lower_crust
-    nnc[lm] = n_mlit
-    nnc[astnc] = n_ast
+    nnc[sa] = air.power_law_exponent
+    nnc[sed] = sediments.power_law_exponent
+    nnc[dec] = decolement.power_law_exponent
+    nnc[uc] = upper_crust.power_law_exponent
+    nnc[lc] = lower_crust.power_law_exponent
+    nnc[lm] = lithospheric_mantle.power_law_exponent
+    nnc[astnc] = asthenosphere.power_law_exponent
 
-    Qnc[air] = Q_air
-    Qnc[sed] = Q_sed
-    Qnc[dec] = Q_dec
-    Qnc[uc] = Q_upper_crust
-    Qnc[lc] = Q_lower_crust
-    Qnc[lm] = Q_mlit
-    Qnc[astnc] = Q_ast
+    Qnc[sa] = air.activation_energy
+    Qnc[sed] = sediments.activation_energy
+    Qnc[dec] = decolement.activation_energy
+    Qnc[uc] = upper_crust.activation_energy
+    Qnc[lc] = lower_crust.activation_energy
+    Qnc[lm] = lithospheric_mantle.activation_energy
+    Qnc[astnc] = asthenosphere.activation_energy
 
-    Vnc[air] = V_air
-    Vnc[sed] = V_sed
-    Vnc[dec] = V_dec
-    Vnc[uc] = V_upper_crust
-    Vnc[lc] = V_lower_crust
-    Vnc[lm] = V_mlit
-    Vnc[astnc] = V_ast
+    Vnc[sa] = air.activation_volume
+    Vnc[sed] = sediments.activation_volume
+    Vnc[dec] = decolement.activation_volume
+    Vnc[uc] = upper_crust.activation_volume
+    Vnc[lc] = lower_crust.activation_volume
+    Vnc[lm] = lithospheric_mantle.activation_volume
+    Vnc[astnc] = asthenosphere.activation_volume
 
 else:
-    air = zaux < thickness_sa
-    uc = (zaux>=thickness_sa) & (zaux<thickness_sa+thickness_upper_crust)
-    lc = (zaux>=thickness_sa+thickness_upper_crust) & (zaux<thickness_sa+thickness_upper_crust+thickness_lower_crust)
-    lm = (zaux>=thickness_sa+thickness_upper_crust+thickness_lower_crust) & (zaux<=thickness_sa+thickness_upper_crust+thickness_lower_crust+thickness_mlit)
-    astnc = zaux>thickness_sa+thickness_upper_crust+thickness_lower_crust+thickness_mlit
+    sa = zaux < thickness_air
+    uc = (zaux>=thickness_air) & (zaux<thickness_air+thickness_upper_crust)
+    lc = (zaux>=thickness_air+thickness_upper_crust) & (zaux<thickness_air+thickness_upper_crust+thickness_lower_crust)
+    lm = (zaux>=thickness_air+thickness_upper_crust+thickness_lower_crust) & (zaux<=thickness_air+thickness_upper_crust+thickness_lower_crust+thickness_lithospheric_mantle)
+    ast = zaux>thickness_air+thickness_upper_crust+thickness_lower_crust+thickness_lithospheric_mantle
     
     #non cratonic rheological properties
-    Cnc[air] = C_air
-    Cnc[uc] = C_upper_crust
-    Cnc[lc] = C_lower_crust
-    Cnc[lm] = C_mlit
-    Cnc[astnc] = C_mlit
+    C[sa] = air.effective_viscosity_scale_factor
+    C[uc] = upper_crust.effective_viscosity_scale_factor
+    C[lc] = lower_crust.effective_viscosity_scale_factor
+    C[lm] = lithospheric_mantle.effective_viscosity_scale_factor
+    C[ast] = asthenosphere.effective_viscosity_scale_factor
 
-    rhonc[air] = rho_air
-    rhonc[uc] = rho_upper_crust
-    rhonc[lc] = rho_lower_crust
-    rhonc[lm] = rho_mlit
-    rhonc[astnc] = rho_ast
+    rho[sa] = air.density
+    rho[uc] = upper_crust.density
+    rho[lc] = lower_crust.density
+    rho[lm] = lithospheric_mantle.density
+    rho[ast] = asthenosphere.density
 
-    Anc[air] = A_air
-    Anc[uc] = A_upper_crust
-    Anc[lc] = A_lower_crust
-    Anc[lm] = A_mlit
-    Anc[astnc] = A_air
+    A[sa] = air.pre_exponential_constant
+    A[uc] = upper_crust.pre_exponential_constant
+    A[lc] = lower_crust.pre_exponential_constant
+    A[lm] = lithospheric_mantle.pre_exponential_constant
+    A[ast] = asthenosphere.pre_exponential_constant
 
-    nnc[air] = n_air
-    nnc[uc] = n_upper_crust
-    nnc[lc] = n_lower_crust
-    nnc[lm] = n_mlit
-    nnc[astnc] = n_ast
+    n[sa] = air.power_law_exponent
+    n[uc] = upper_crust.power_law_exponent
+    n[lc] = lower_crust.power_law_exponent
+    n[lm] = lithospheric_mantle.power_law_exponent
+    n[ast] = asthenosphere.power_law_exponent
 
-    Qnc[air] = Q_air
-    Qnc[uc] = Q_upper_crust
-    Qnc[lc] = Q_lower_crust
-    Qnc[lm] = Q_mlit
-    Qnc[astnc] = Q_ast
+    Q[sa] = air.activation_energy
+    Q[uc] = upper_crust.activation_energy
+    Q[lc] = lower_crust.activation_energy
+    Q[lm] = lithospheric_mantle.activation_energy
+    Q[ast] = asthenosphere.activation_energy
 
-    Vnc[air] = V_air
-    Vnc[uc] = V_upper_crust
-    Vnc[lc] = V_lower_crust
-    Vnc[lm] = V_mlit
-    Vnc[astnc] = V_ast
+    V[sa] = air.activation_volume
+    V[uc] = upper_crust.activation_volume
+    V[lc] = lower_crust.activation_volume
+    V[lm] = lithospheric_mantle.activation_volume
+    V[ast] = asthenosphere.activation_volume
 
 
 sr = 1.0E-15 #strain rate - s-1
@@ -1143,39 +1392,36 @@ sr = 1.0E-15 #strain rate - s-1
 R = 8.314 #gas constant - J K−1 mol−1
 g = 10.0
 
-Pnc = rhonc[::-1].cumsum()[::-1]*g*dz
-Pc = rhoc[::-1].cumsum()[::-1]*g*dz
+P = rho[::-1].cumsum()[::-1]*g*dz
 
 phi = 2.0*np.pi/180.0
 c0 = 4.0E6
 
-sigmanc_min = c0 * np.cos(phi) + Pnc * np.sin(phi)
-sigmac_min = c0 * np.cos(phi) + Pc * np.sin(phi)
+sigmanc_min = c0 * np.cos(phi) + P * np.sin(phi)
 
 phi = 15.0*np.pi/180.0
 c0 = 20.0E6
-sigmanc_max = c0 * np.cos(phi) + Pnc * np.sin(phi)
-sigmac_max = c0 * np.cos(phi) + Pc * np.sin(phi)
+sigma_max = c0 * np.cos(phi) + P * np.sin(phi)
 
-TKnc = T[:, 0] + 273
+TK = T[:, 0] + 273
 
-viscnc = Cnc * Anc**(-1./nnc) * sr**((1.0-nnc)/nnc)*np.exp((Qnc + Vnc*Pnc)/(nnc*R*TKnc))
-sigmanc_v = viscnc * sr
-condnc = sigmanc_v>sigmanc_max
-sigmanc_v[condnc]=sigmanc_max[condnc]
+visc = C * A**(-1./n) * sr**((1.0-n)/n)*np.exp((Q + V*P)/(n*R*TK))
+sigma_v = visc * sr
+cond = sigma_v>sigma_max
+sigma_v[cond]=sigma_max[cond]
 
 axsg = axs.inset_axes((0.605,
                        0,
                        0.13,
                        1))
 if(sediments==True):
-    axsg.plot(sigmanc_v/1e9,-(z-thickness_sa)/1e3,'r', label=f'Non-cratonic')
+    axsg.plot(sigma_v/1e9,-(z-thickness_air)/1e3,'r', label=f'Non-cratonic')
     # axsg.plot(sigmanc_min/1e9,-(z-t_sa)/1e3,'k--',lw=0.8)
-    # axsg.plot(sigmac_v/1e9,-(z-thickness_sa)/1e3,'k', label=f'Cratonic')
+    # axsg.plot(sigmac_v/1e9,-(z-thickness_air)/1e3,'k', label=f'Cratonic')
 else:
-    axsg.plot(sigmanc_v/1e9,-(z-thickness_sa)/1e3,'r', label=f'Non-cratonic')
+    axsg.plot(sigma_v/1e9,-(z-thickness_air)/1e3,'r', label=f'Non-cratonic')
     # axsg.plot(sigmanc_min/1e9,-(z-t_sa)/1e3,'k--',lw=0.8)
-    # axsg.plot(sigmac_v/1e9,-(z-thickness_sa)/1e3,'k', label=f'Cratonic')
+    # axsg.plot(sigmac_v/1e9,-(z-thickness_air)/1e3,'k', label=f'Cratonic')
     # axsg.plot(sigmac_min/1e9,-(z-t_sa)/1e3,'k--',lw=0.8)
 
 axsg.grid(visible=True, axis='x',which='both',ls='--',color='gray',alpha=0.8)
@@ -1240,7 +1486,7 @@ if(velocity_from_ascii == True):
     crt=0
 
     #Right side velocity arrows
-    axr.fill_betweenx((-z + thickness_sa) / 1.0e3, VX[:, -1]* (100.0*365.0 * 24.0 * 3600.0), 0, color=None, facecolor=None, hatch='---',alpha=0)
+    axr.fill_betweenx((-z + thickness_air) / 1.0e3, VX[:, -1]* (100.0*365.0 * 24.0 * 3600.0), 0, color=None, facecolor=None, hatch='---',alpha=0)
     axr.set_ylim(ylimplot)
     axr.set_yticks([])
     axr.set_xticks([])
@@ -1260,9 +1506,9 @@ if(velocity_from_ascii == True):
                           (1-fac)*2,
                           1))
     
-    axl.fill_betweenx((-z + thickness_sa) / 1.0e3, VX[:, 0]* (100*365 * 24 * 3600), 0, color=None, facecolor=None, hatch='---',alpha=0)
+    axl.fill_betweenx((-z + thickness_air) / 1.0e3, VX[:, 0]* (100*365 * 24 * 3600), 0, color=None, facecolor=None, hatch='---',alpha=0)
 
-    axl.set_ylim(-Lz/1000+thickness_sa/1000, 0+thickness_sa/1000)
+    axl.set_ylim(-Lz/1000+thickness_air/1000, 0+thickness_air/1000)
     axl.set_yticks([])
     axl.set_xticks([])
     axl.patch.set_alpha(0)
@@ -1276,6 +1522,7 @@ if(velocity_from_ascii == True):
 
 figname = 'numerical_setup'
 fig.savefig(f"{figname}.png", bbox_inches="tight", dpi=300)
+fig.savefig(f"{figname}.svg", bbox_inches="tight", dpi=300)
 plt.close()
 
 ##############################################################################
@@ -1297,7 +1544,7 @@ if(variable_bcv == True):
     print(f"Time of quiescence after orogeny: {dt_quiescence2} Myr")
 print(f'Total time: {time_max/1.0e6} Myr')
 print('Layers thickness:')
-print(f"\tair: {thickness_sa*1.0e-3} km")
+print(f"\tair: {thickness_air*1.0e-3} km")
 if(sediments==True):
     print(f"\tsediments: {thickness_sed/1000} km")
     print(f"\tdecolement: {thickness_decolement/1000} km")
@@ -1310,16 +1557,16 @@ else:
     print(f"\tcrust: {(thickness_upper_crust + thickness_lower_crust)/1000} km")
 print(f"\tnon cratonic lithosphere: {thickness_litho*1.0e-3} km")
 print('Important scale factors (C):')
-print(f"\tair: {C_air}")
+print(f"\tair: {air.effective_viscosity_scale_factor}")
 if(sediments==True):
-    print(f"\tsediments: {C_sed}")
-    print(f"\tdecolement: {C_dec}")
-print(f"\tupper crust: {C_upper_crust}")
-print(f"\tlower crust: {C_lower_crust}")
-print(f"\tweak seed: {C_seed}")
-print(f"\tnon cratonic mantle lithosphere: {C_mlit}")
+    print(f"\tsediments: {sediments.effective_viscosity_scale_factor}")
+    print(f"\tdecolement: {decolement.effective_viscosity_scale_factor}")
+print(f"\tupper crust: {upper_crust.effective_viscosity_scale_factor}")
+print(f"\tlower crust: {lower_crust.effective_viscosity_scale_factor}")
+print(f"\tweak seed: {seed_base.effective_viscosity_scale_factor}")
+print(f"\tnon cratonic mantle lithosphere: {lithospheric_mantle.effective_viscosity_scale_factor}")
 print(f"Preset of initial temperature field: {preset}")
-print(f"Radiogenic heat in lithospheric mantle: {radiogenic_heat_mlit}")
+print(f"Radiogenic heat in lithospheric mantle: {lithospheric_mantle.radiogenic_heat_production}")
 print(f"Surface process: {sp_surface_processes}")
 print(f"Velocity field: {velocity_from_ascii}")
 print(f"Variable velocity field: {variable_bcv}")
@@ -1330,7 +1577,7 @@ print(f"\tPreset of initial temperature field: {preset}")
 print(f"\tIncrease in mantle basal temperature (Ta): {DeltaT} oC")
 print(f"\tAssumed mantle Potential Temperature for diffusive model: {TP} oC")
 print(f'magmatism: {magmatism}')
-print(f'rheology model in param file: {rheol}')
+print(f'rheology model in param file: {rheology_model}')
 
 #Save scenario infos
 scenario_infos = ['SCENARIO INFOS:']
@@ -1354,7 +1601,7 @@ if(variable_bcv == True):
     scenario_infos.append(' ')
 scenario_infos.append(f'Total time: {time_max/1.0e6} Myr')
 scenario_infos.append('Layers thickness:')
-scenario_infos.append(f"\tair: {thickness_sa*1.0e-3} km")
+scenario_infos.append(f"\tair: {thickness_air*1.0e-3} km")
 if(sediments==True):
     scenario_infos.append(f"\tsediments: {thickness_sed/1000} km")
     scenario_infos.append(f"\tdecolement: {thickness_decolement/1000} km")
@@ -1369,17 +1616,17 @@ scenario_infos.append(f"\tnon cratonic lithosphere: {thickness_litho*1.0e-3} km"
 scenario_infos.append(' ')
 scenario_infos.append(' ')
 scenario_infos.append('Important scale factors (C):')
-scenario_infos.append(f"\tair: {C_air}")
+scenario_infos.append(f"\tair: {air.effective_viscosity_scale_factor}")
 if(sediments==True):
-    scenario_infos.append(f"\tsediments: {C_sed}")
-    scenario_infos.append(f"\tdecolement: {C_dec}")
-scenario_infos.append(f"\tupper crust: {C_upper_crust}")
-scenario_infos.append(f"\tlower crust: {C_lower_crust}")
-scenario_infos.append(f"\tweak seed: {C_seed}")
-scenario_infos.append(f"\tnon cratonic mantle lithosphere: {C_mlit}")
+    scenario_infos.append(f"\tsediments: {sediments.effective_viscosity_scale_factor}")
+    scenario_infos.append(f"\tdecolement: {decolement.effective_viscosity_scale_factor}")
+scenario_infos.append(f"\tupper crust: {upper_crust.effective_viscosity_scale_factor}")
+scenario_infos.append(f"\tlower crust: {lower_crust.effective_viscosity_scale_factor}")
+scenario_infos.append(f"\tweak seed: {seed_base.effective_viscosity_scale_factor}")
+scenario_infos.append(f"\tnon cratonic mantle lithosphere: {lithospheric_mantle.effective_viscosity_scale_factor}")
 scenario_infos.append(' ')
 scenario_infos.append(f"Preset of initial temperature field: {preset}")
-scenario_infos.append(f"Radiogenic heat in lithospheric mantle: {radiogenic_heat_mlit}")
+scenario_infos.append(f"Radiogenic heat in lithospheric mantle: {lithospheric_mantle.radiogenic_heat_production}")
 scenario_infos.append(f"Surface process: {sp_surface_processes}")
 scenario_infos.append(f"Velocity field: {velocity_from_ascii}")
 if(velocity_from_ascii==True):
@@ -1393,7 +1640,7 @@ scenario_infos.append(f"\tIncrease in mantle basal temperature (Ta): {DeltaT} oC
 scenario_infos.append(f"\tAssumed mantle Potential Temperature for diffusive model: {TP} oC")
 scenario_infos.append(' ')
 scenario_infos.append(f'magmatism: {magmatism}')
-scenario_infos.append(f'rheology model in param file: {rheol}')
+scenario_infos.append(f'rheology model in param file: {rheology_model}')
 
 np.savetxt('infos_'+path[-1] + '.txt', scenario_infos, fmt="%s")
 
@@ -1402,12 +1649,11 @@ np.savetxt('infos_'+path[-1] + '.txt', scenario_infos, fmt="%s")
 ##############################################################################
 
 linux = False
-mac = True
+mac = False#True
 aguia = False
-hypatia = False
+hypatia = True#False
 
 mandyoc_options = '-seed 0,5,8 -strain_seed 0.0,1.0,1.0'
-
 
 if(linux):
     run_linux = f'''
@@ -1538,6 +1784,8 @@ if(aguia):
 
 if(hypatia):
 
+   if(hypatia):
+    
     dirname = '${PWD##*/}'
     current_dir = '${PWD}'
     # main_folders = '/scratch/jpmacedo'
@@ -1549,8 +1797,10 @@ if(hypatia):
     #SBATCH --ntasks={str(int(ncores))}
     #SBATCH --nodes={str(int(nodes))}
     #SBATCH --cpus-per-task=1
+    #SBATCH --hint=nomultithread
+    #SBATCH --exclude=f001
     #SBATCH --time 72:00:00 # 16 horas; poderia ser “2-” para 2 dias; máximo “8-”
-    #SBATCH --job-name mandyoc-jpms
+    #SBATCH --job-name {scenario_name}-jpms
     #SBATCH --output slurm_%j.log
     #SBATCH --error=log_error_%j.log
     #SBATCH --no-requeue
@@ -1578,12 +1828,12 @@ if(hypatia):
     julia -t {str(int(ncores))} /home/jpmacedo/opt/convertNETCDF_v2.jl {current_dir}
     julia -t {str(int(ncores))} /home/jpmacedo/opt/LithoNETCDF_v2.jl {current_dir}
 
-    python /home/jpmacedo/opt/track_particles_v3.py {current_dir} 0
+    # python /home/jpmacedo/opt/track_particles_v3.py {current_dir} 0
     zip {dirname}.zip *.nc
 
     #run of auxiliary scripts to zip and clean the folder
-    # bash zipper.sh
-    # bash clean.sh
+    bash zipper.sh
+    bash clean.sh
     '''
     with open('run_hypatia.sh', 'w') as f:
         for line in run_hypatia.split('\n'):
