@@ -1056,9 +1056,21 @@ if(variable_bcv == True):
 
     time_max = (tf_quiescence2)*1.0e6 #Myr to years
 
-    # time_max = (tf_quiescence + dt_rifting2)*1.0e6 #210.0e6
+    var_bcv = f""" 3
+                    {ti_quiescence1} 0.01
+                    {tf_quiescence1} -100.0
+                    {ti_quiescence2} 0.01
+                    """
+
+    # Create the parameter file
+    with open("scale_bcv.txt", "w") as f:
+        for line in var_bcv.split("\n"):
+            line = line.strip()
+            if len(line):
+                f.write(" ".join(line.split()) + "\n")
 else:
     time_max = 120.0e6
+
 
 
 
