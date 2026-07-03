@@ -1306,53 +1306,53 @@ if(sediments==True):
     astnc = zaux>thickness_air+thickness_sed+thickness_decolement+thickness_upper_crust+thickness_lower_crust+thickness_lithospheric_mantle 
     
     #non cratonic rheological properties
-    Cnc[sa] = air.effective_viscosity_scale_factor
-    Cnc[sed] = sediments.effective_viscosity_scale_factor
-    Cnc[dec] = decolement.effective_viscosity_scale_factor
-    Cnc[uc] = upper_crust.effective_viscosity_scale_factor
-    Cnc[lc] = lower_crust.effective_viscosity_scale_factor
-    Cnc[lm] = lithospheric_mantle.effective_viscosity_scale_factor
-    Cnc[astnc] = asthenosphere.effective_viscosity_scale_factor
+    C[sa] = air.effective_viscosity_scale_factor
+    C[sed] = sediments.effective_viscosity_scale_factor
+    C[dec] = decolement.effective_viscosity_scale_factor
+    C[uc] = upper_crust.effective_viscosity_scale_factor
+    C[lc] = lower_crust.effective_viscosity_scale_factor
+    C[lm] = lithospheric_mantle.effective_viscosity_scale_factor
+    C[astnc] = asthenosphere.effective_viscosity_scale_factor
 
-    rhonc[sa] = air.density
-    rhonc[sed] = sediments.density
-    rhonc[dec] = decolement.density
-    rhonc[uc] = upper_crust.density
-    rhonc[lc] = lower_crust.density
-    rhonc[lm] = lithospheric_mantle.density
-    rhonc[astnc] = asthenosphere.density
+    rho[sa] = air.density
+    rho[sed] = sediments.density
+    rho[dec] = decolement.density
+    rho[uc] = upper_crust.density
+    rho[lc] = lower_crust.density
+    rho[lm] = lithospheric_mantle.density
+    rho[astnc] = asthenosphere.density
 
-    Anc[sa] = air.pre_exponential_constant
-    Anc[sed] = sediments.pre_exponential_constant
-    Anc[dec] = decolement.pre_exponential_constant
-    Anc[uc] = upper_crust.pre_exponential_constant
-    Anc[lc] = lower_crust.pre_exponential_constant
-    Anc[lm] = lithospheric_mantle.pre_exponential_constant
-    Anc[astnc] = asthenosphere.pre_exponential_constant
+    A[sa] = air.pre_exponential_constant
+    A[sed] = sediments.pre_exponential_constant
+    A[dec] = decolement.pre_exponential_constant
+    A[uc] = upper_crust.pre_exponential_constant
+    A[lc] = lower_crust.pre_exponential_constant
+    A[lm] = lithospheric_mantle.pre_exponential_constant
+    A[astnc] = asthenosphere.pre_exponential_constant
 
-    nnc[sa] = air.power_law_exponent
-    nnc[sed] = sediments.power_law_exponent
-    nnc[dec] = decolement.power_law_exponent
-    nnc[uc] = upper_crust.power_law_exponent
-    nnc[lc] = lower_crust.power_law_exponent
-    nnc[lm] = lithospheric_mantle.power_law_exponent
-    nnc[astnc] = asthenosphere.power_law_exponent
+    n[sa] = air.power_law_exponent
+    n[sed] = sediments.power_law_exponent
+    n[dec] = decolement.power_law_exponent
+    n[uc] = upper_crust.power_law_exponent
+    n[lc] = lower_crust.power_law_exponent
+    n[lm] = lithospheric_mantle.power_law_exponent
+    n[astnc] = asthenosphere.power_law_exponent
 
-    Qnc[sa] = air.activation_energy
-    Qnc[sed] = sediments.activation_energy
-    Qnc[dec] = decolement.activation_energy
-    Qnc[uc] = upper_crust.activation_energy
-    Qnc[lc] = lower_crust.activation_energy
-    Qnc[lm] = lithospheric_mantle.activation_energy
-    Qnc[astnc] = asthenosphere.activation_energy
+    Q[sa] = air.activation_energy
+    Q[sed] = sediments.activation_energy
+    Q[dec] = decolement.activation_energy
+    Q[uc] = upper_crust.activation_energy
+    Q[lc] = lower_crust.activation_energy
+    Q[lm] = lithospheric_mantle.activation_energy
+    Q[astnc] = asthenosphere.activation_energy
 
-    Vnc[sa] = air.activation_volume
-    Vnc[sed] = sediments.activation_volume
-    Vnc[dec] = decolement.activation_volume
-    Vnc[uc] = upper_crust.activation_volume
-    Vnc[lc] = lower_crust.activation_volume
-    Vnc[lm] = lithospheric_mantle.activation_volume
-    Vnc[astnc] = asthenosphere.activation_volume
+    V[sa] = air.activation_volume
+    V[sed] = sediments.activation_volume
+    V[dec] = decolement.activation_volume
+    V[uc] = upper_crust.activation_volume
+    V[lc] = lower_crust.activation_volume
+    V[lm] = lithospheric_mantle.activation_volume
+    V[astnc] = asthenosphere.activation_volume
 
 else:
     sa = zaux < thickness_air
@@ -1795,9 +1795,6 @@ if(aguia):
                 f.write(' '.join(line.split()) + '\n')
 
 if(hypatia):
-
-   if(hypatia):
-    
     dirname = '${PWD##*/}'
     current_dir = '${PWD}'
     # main_folders = '/scratch/jpmacedo'
