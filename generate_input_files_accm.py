@@ -298,10 +298,10 @@ if(crameri_colors):
 ###############################################################################################################################################
 # scenario_name = 'AR8'
 # scenario_name = 'AR20'
-# scenario_name = 'AR25'
+scenario_name = 'AR25'
 # scenario_name = 'AR50'
 # scenario_name = 'AR100'
-scenario_name = 'AR150'
+# scenario_name = 'AR150'
 # scenario_kind = 'double_keel'
 
 scenario_kind = 'accordion'
@@ -370,12 +370,6 @@ sp_surface_tracking              = True
 sp_surface_processes             = False
 # sp_surface_processes             = True
 
-#time constrains 
-time_max                         = 40.0e6
-dt_max                           = 5.0e3
-# time_max                         = 200.0e6
-step_print                       = 100
-
 #External inputs: bc velocity, velocity field, precipitation and
 #climate change
 
@@ -384,6 +378,42 @@ variable_bcv                     = True
 velocity_from_ascii              = True
 ast_wind                         = False #True
 
+
+#time constrains 
+dt_max                           = 5.0e3
+step_print                       = 100
+if(variable_bcv == True):
+    #first rifting phase
+    if(scenario_name == 'AR8'):
+        dt_rifting1 = 8.0
+    if(scenario_name == 'AR20'):
+        dt_rifting1 = 20.0
+    if(scenario_name == 'AR25'):
+        dt_rifting1 = 25.0
+    if(scenario_name == 'AR50'):
+        dt_rifting1 = 50.0
+    if(scenario_name == 'AR100'):
+        dt_rifting1 = 100.0
+    if(scenario_name == 'AR150'):
+        dt_rifting1 = 150.0
+    
+    ti_quiescence1 = 0 + dt_rifting1 #Myr
+
+    #Time of quiescence1 to and start of convergence to close the ocean basin
+    dt_quiescence1 = 20 #Myr
+    tf_quiescence1 = ti_quiescence1 + dt_quiescence1
+
+    #Closing the ocean basin over dt_rifting1 Myr and starting orogeny to begin the second quiescence phase
+    dt_orogeny = 30.0 #Myr
+    ti_quiescence2 = tf_quiescence1 + dt_rifting1 + dt_orogeny #Myr
+
+    #second quiescence phase after orogeny
+    dt_quiescence2 = 40.0 #Myr
+    tf_quiescence2 = ti_quiescence2 + dt_quiescence2
+
+    time_max = (tf_quiescence2)*1.0e6 #Myr to years
+else:
+    time_max = 40.0e6 #Myr to years
 
 if(sp_surface_processes == True):
     precipitation_profile_from_ascii = True #False
@@ -1026,35 +1056,6 @@ v = np.reshape(v.T, (np.size(v)))
 np.savetxt("input_velocity_0.txt", v, header="v1\nv2\nv3\nv4")
 
 if(variable_bcv == True):
-    #first rifting phase
-    if(scenario_name == 'AR8'):
-        dt_rifting1 = 8.0
-    if(scenario_name == 'AR20'):
-        dt_rifting1 = 20.0
-    if(scenario_name == 'AR25'):
-        dt_rifting1 = 25.0
-    if(scenario_name == 'AR50'):
-        dt_rifting1 = 50.0
-    if(scenario_name == 'AR100'):
-        dt_rifting1 = 100.0
-    if(scenario_name == 'AR150'):
-        dt_rifting1 = 150.0
-    
-    ti_quiescence1 = 0 + dt_rifting1 #Myr
-
-    #Time of quiescence1 to and start of convergence to close the ocean basin
-    dt_quiescence1 = 20 #Myr
-    tf_quiescence1 = ti_quiescence1 + dt_quiescence1
-
-    #Closing the ocean basin over dt_rifting1 Myr and starting orogeny to begin the second quiescence phase
-    dt_orogeny = 30.0 #Myr
-    ti_quiescence2 = tf_quiescence1 + dt_rifting1 + dt_orogeny #Myr
-
-    #second quiescence phase after orogeny
-    dt_quiescence2 = 40.0 #Myr
-    tf_quiescence2 = ti_quiescence2 + dt_quiescence2
-
-    time_max = (tf_quiescence2)*1.0e6 #Myr to years
 
     var_bcv = f""" 3
                     {ti_quiescence1} 0.01
@@ -1662,7 +1663,7 @@ np.savetxt('infos_'+path[-1] + '.txt', scenario_infos, fmt="%s")
 
 linux = False
 mac = False#True
-aguia = False
+aguia = True
 hypatia = True#False
 
 mandyoc_options = '-seed 0,5,8 -strain_seed 0.0,1.0,1.0'
@@ -1722,16 +1723,23 @@ if(mac):
                 f.write(' '.join(line.split()) + '\n')
 
 if(aguia):
-    dirname = '${PWD##*/}'
+    # ncores = 150
+    aguia = 'aguia4'
+    # aguia = 'aguia3'
 
-    aguia_machine = 'aguia4'
-    # aguia_machine = 'aguia3'
+    if(aguia == 'aguia4'):
 
-    if(aguia_machine == 'aguia4'):
+        ncores = 160#90
+        cores_per_node = 20
+
+
+        #Estimating number of nodes needed according to number of cores
+        nodes = (ncores + cores_per_node - 1) // cores_per_node #ceil division
+
         partition = 'SP2'
         main_folders = '/temporario2/8672526'
 
-    if(aguia_machine == 'aguia3'):
+    if(aguia == 'aguia3'):
         partition = 'SP3'
         main_folders =  '/scratch/8672526'
 
@@ -1739,55 +1747,27 @@ if(aguia):
             #!/usr/bin/bash
 
             #SBATCH --partition={partition}
-            #SBATCH --ntasks=1
-            #SBATCH --nodes=1
-            #SBATCH --cpus-per-task={str(int(ncores))}
+            #SBATCH --ntasks={str(int(ncores))}
+            #SBATCH --nodes={nodes}
+            #SBATCH --cpus-per-task=1
             #SBATCH --time 192:00:00 #16horas/"2-" para 2 dias com max 8 dias
-            #SBATCH --job-name mandyoc-jpms
+            #SBATCH --job-name {scenario_name}
             #SBATCH --output slurm_%j.log #ou FD.out/ %j pega o id do job
             #SBATCH --mail-type=BEGIN,FAIL,END
             #SBATCH --mail-user=joao.macedo.silva@usp.br
 
-            export PETSC_DIR={main_folders}/opt/petsc
-            export PETSC_ARCH=arch-label-optimized
-            MANDYOC={main_folders}/opt/mandyoc/bin/mandyoc
-            MANDYOC_OPTIONS={mandyoc_options}
+            export PETSC_DIR='{main_folders}/opt/petsc'
+            export PETSC_ARCH='arch-label-optimized'
+            MANDYOC='{main_folders}/opt/mandyoc/bin/mandyoc'
+            MANDYOC_OPTIONS='{mandyoc_options}'
 
             $PETSC_DIR/$PETSC_ARCH/bin/mpiexec -n {str(int(ncores))} $MANDYOC $MANDYOC_OPTIONS
 
-            DIRNAME={dirname}
-
-            zip $DIRNAME.zip interfaces.txt param.txt input*_0.txt vel_bc.txt velz_bc.txt run*.sh
-            zip -u $DIRNAME.zip bc_velocity_*.txt
-            zip -u $DIRNAME.zip density_*.txt
-            zip -u $DIRNAME.zip heat_*.txt
-            zip -u $DIRNAME.zip pressure_*.txt
-            zip -u $DIRNAME.zip sp_surface_global_*.txt
-            zip -u $DIRNAME.zip strain_*.txt
-            zip -u $DIRNAME.zip temperature_*.txt
-            zip -u $DIRNAME.zip time_*.txt
-            zip -u $DIRNAME.zip velocity_*.txt
-            zip -u $DIRNAME.zip viscosity_*.txt
-            zip -u $DIRNAME.zip scale_bcv.txt
-            zip -u $DIRNAME.zip step*.txt
-            zip -u $DIRNAME.zip *.log
-
-            #rm *.log
-            rm vel_bc*
-            rm velz*
-            rm bc_velocity*
-            rm velocity*
-            rm step*
-            rm temperature*
-            rm density*
-            rm viscosity*
-            rm heat*
-            rm strain_*
-            rm time*
-            rm pressure_*
-            rm sp_surface_global*
-            rm scale_bcv.txt
+            bash zipper.sh
+            bash clean.sh
+            
         '''
+    
     with open('run_aguia.sh', 'w') as f:
         for line in run_aguia.split('\n'):
             line = line.strip()
@@ -1809,7 +1789,7 @@ if(hypatia):
     #SBATCH --hint=nomultithread
     #SBATCH --exclude=f001
     #SBATCH --time 72:00:00 # 16 horas; poderia ser “2-” para 2 dias; máximo “8-”
-    #SBATCH --job-name {scenario_name}-jpms
+    #SBATCH --job-name {scenario_name}
     #SBATCH --output slurm_%j.log
     #SBATCH --error=log_error_%j.log
     #SBATCH --no-requeue
@@ -1831,17 +1811,17 @@ if(hypatia):
 
     conda activate mpy
     #Creating directories for the output files
+    bash zipper.sh
     bash /home/jpmacedo/opt/mv-updated.sh
-
+    
     #Creating netdf files
     julia -t {str(int(ncores))} /home/jpmacedo/opt/convertNETCDF_v2.jl {current_dir}
     julia -t {str(int(ncores))} /home/jpmacedo/opt/LithoNETCDF_v2.jl {current_dir}
 
-    # python /home/jpmacedo/opt/track_particles_v3.py {current_dir} 0
     zip {dirname}.zip *.nc
 
     #run of auxiliary scripts to zip and clean the folder
-    bash zipper.sh
+    
     bash clean.sh
     '''
     with open('run_hypatia.sh', 'w') as f:
