@@ -298,11 +298,10 @@ if(crameri_colors):
 ###############################################################################################################################################
 # scenario_name = 'AR8'
 # scenario_name = 'AR20'
-scenario_name = 'AR25'
+# scenario_name = 'AR25'
 # scenario_name = 'AR50'
 # scenario_name = 'AR100'
-# scenario_name = 'AR150'
-# scenario_kind = 'double_keel'
+scenario_name = 'AR150'
 
 scenario_kind = 'accordion'
 
@@ -552,7 +551,7 @@ lithospheric_mantle = MandyocLayer('lithospheric_mantle', DryOlivine,
 
 lower_crust = MandyocLayer('lower_crust', WetQuartz,
                             density=2800.0,
-                            effective_viscosity_scale_factor=100,
+                            effective_viscosity_scale_factor=40.0,
                             radiogenic_heat_production=2.86e-10,
                             base_depth=thickness_air+thickness_upper_crust+thickness_lower_crust,
                             Nx=Nx) 
@@ -604,7 +603,7 @@ if(seed_in_litho):
                                  DryOlivine,
                                  density=3354.0,
                                 #  interface=np.ones(Nx) * (seed_depth + thickness_lower_crust + thickness_upper_crust + thickness_air),
-                                 effective_viscosity_scale_factor=1.0,
+                                 effective_viscosity_scale_factor=0.1,
                                  radiogenic_heat_production=9.0e-12,
                                  base_depth=lower_crust.base_depth+seed_depth,
                                  Nx=Nx)
@@ -612,8 +611,8 @@ if(seed_in_litho):
                             DryOlivine,
                             density=3354.0,
                             # interface=np.ones(Nx) * (seed_depth + thickness_lower_crust + thickness_upper_crust + thickness_air),
-                            effective_viscosity_scale_factor=1.0,
-                            radiogenic_heat_production=2.86e-10,
+                            effective_viscosity_scale_factor=0.1,
+                            radiogenic_heat_production=9.0e-12,
                             base_depth=lower_crust.base_depth+seed_depth,
                             Nx=Nx) #0.8e-6 / 2800.0)
     
@@ -1708,7 +1707,7 @@ if(mac):
     julia -t {str(int(ncores))} {main_folders}/opt/convertNETCDF_v2.jl {current_dir}
     julia -t {str(int(ncores))} {main_folders}/opt/LithoNETCDF_v2.jl {current_dir}
 
-    python {main_folders}/opt/track_particles_v3.py {current_dir} 0
+    # python {main_folders}/opt/track_particles_v3.py {current_dir} 0
     zip {dirname}.zip *.nc
 
     #run of auxiliary scripts to zip and clean the folder
@@ -1732,7 +1731,6 @@ if(aguia):
         ncores = 160#90
         cores_per_node = 20
 
-
         #Estimating number of nodes needed according to number of cores
         nodes = (ncores + cores_per_node - 1) // cores_per_node #ceil division
 
@@ -1743,8 +1741,11 @@ if(aguia):
         partition = 'SP3'
         main_folders =  '/scratch/8672526'
 
+    current_dir = '${PWD}'
+    dirname = '${PWD##*/}'
     run_aguia = f'''
             #!/usr/bin/bash
+            module load Miniconda
 
             #SBATCH --partition={partition}
             #SBATCH --ntasks={str(int(ncores))}
@@ -1762,10 +1763,17 @@ if(aguia):
             MANDYOC_OPTIONS='{mandyoc_options}'
 
             $PETSC_DIR/$PETSC_ARCH/bin/mpiexec -n {str(int(ncores))} $MANDYOC $MANDYOC_OPTIONS
-
             bash zipper.sh
-            bash clean.sh
+            bash /temporario2/8672526/opt/mv-updated.sh
+            #Creating netdf files
+            julia -t {str(int(ncores))} /temporario2/8672526/opt/convertNETCDF_v2.jl {current_dir}
+            julia -t {str(int(ncores))} /temporario2/8672526/opt/LithoNETCDF_v2.jl {current_dir}
+
+            python /temporario2/8672526/opt/frames_generator.py
             
+            zip {dirname}.zip *.nc
+            bash clean.sh
+        
         '''
     
     with open('run_aguia.sh', 'w') as f:
@@ -1809,7 +1817,7 @@ if(hypatia):
     #run mandyoc
     mpirun -n ${{SLURM_NTASKS}} --map-by :OVERSUBSCRIBE ${{MANDYOC}} ${{MANDYOC_OPTIONS}}
 
-    conda activate mpy
+    # conda activate mpy
     #Creating directories for the output files
     bash zipper.sh
     bash /home/jpmacedo/opt/mv-updated.sh
@@ -1844,8 +1852,8 @@ zipper = f'''
             "density_*.txt"
             "heat_*.txt"
             "pressure_*.txt"
-            "sp_surface_global_*.txt"
-            "lithology_*.txt"
+            "surface*.txt"
+            "litho*.txt"
             "strain_*.txt"
             "temperature_*.txt"
             "time_*.txt"
@@ -1882,8 +1890,8 @@ clean = f'''
             "density_*.txt"
             "heat_*.txt"
             "pressure_*.txt"
-            "sp_surface_global_*.txt"
-            "lithology_*.txt"
+            "surface*.txt"
+            "litho*.txt"
             "strain_*.txt"
             "temperature_*.txt"
             "time_*.txt"
