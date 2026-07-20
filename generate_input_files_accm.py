@@ -313,16 +313,16 @@ experiemnts = {
 # ncores = 20
 # ncores = 64
 # ncores = 70
-ncores = 90
-# ncores = 128
+# ncores = 90
+# # ncores = 128
 # ncores = 192
-# ncores = 256
-# ncores = 384
-cores_per_node = 96
+# # ncores = 256
+# # ncores = 384
+# cores_per_node = 96
 
 
-#Estimating number of nodes needed according to number of cores
-nodes = (ncores + cores_per_node - 1) // cores_per_node #ceil division
+# #Estimating number of nodes needed according to number of cores
+# nodes = (ncores + cores_per_node - 1) // cores_per_node #ceil division
 
 
 #Rheological and Thermal parameters
@@ -551,7 +551,7 @@ lithospheric_mantle = MandyocLayer('lithospheric_mantle', DryOlivine,
 
 lower_crust = MandyocLayer('lower_crust', WetQuartz,
                             density=2800.0,
-                            effective_viscosity_scale_factor=40.0,
+                            effective_viscosity_scale_factor=lower_crust_effective_viscosity_scale_factor,
                             radiogenic_heat_production=2.86e-10,
                             base_depth=thickness_air+thickness_upper_crust+thickness_lower_crust,
                             Nx=Nx) 
@@ -640,12 +640,12 @@ if(seed_in_litho):
     if(sediments==True):
         layers = [asthenosphere, lithospheric_mantle, seed_base, seed_top, lower_crust, upper_crust, decolement, sediments, basalt, air]
     else:
-        layers = [asthenosphere, lithospheric_mantle, seed_base, seed_top, lower_crust, upper_crust, air]
+        layers = [asthenosphere, lithospheric_mantle, seed_base, seed_top, lower_crust, upper_crust, basalt, air]
 else:
     if(sediments==True):
         layers = [asthenosphere, lithospheric_mantle, lower_crust, upper_crust, decolement, sediments, basalt, air]
     else:
-        layers = [asthenosphere, lithospheric_mantle, lower_crust, upper_crust, air]
+        layers = [asthenosphere, lithospheric_mantle, lower_crust, upper_crust, basalt, air]
 
 ##################################################
 # Save interfaces.txt to be used in Mandyoc code #
@@ -1538,125 +1538,6 @@ fig.savefig(f"{figname}.svg", bbox_inches="tight", dpi=300)
 plt.close()
 
 ##############################################################################
-# Scenario infos
-##############################################################################
-
-print(f"Scenario kind: {experiemnts[scenario_kind]}")
-print(f"N cores: {ncores}")
-print('Domain parameters:')
-print(f"\tLx: {Lx*1.0e-3} km")
-print(f"\tLz: {Lz*1.0e-3} km")
-print(f"\tNx: {Nx}")
-print(f"\tNz: {Nz}")
-print(f"Resolution dx x dz: {1.0e-3*Lx/(Nx-1)} x {1.0e-3*Lz/(Nz-1)} km2")
-print(f'Time limit: {time_max/1.0e6} Myr')
-if(variable_bcv == True):
-    print(f'Time of rifting1: {dt_rifting1} Myr')
-    print(f"Time of quiescence after rifting: {dt_quiescence1} Myr")
-    print(f"Time of quiescence after orogeny: {dt_quiescence2} Myr")
-print(f'Total time: {time_max/1.0e6} Myr')
-print('Layers thickness:')
-print(f"\tair: {thickness_air*1.0e-3} km")
-if(sediments==True):
-    print(f"\tsediments: {thickness_sed/1000} km")
-    print(f"\tdecolement: {thickness_decolement/1000} km")
-print(f"\tupper crust: {thickness_upper_crust*1.0e-3} km")
-print(f"\tlower crust: {thickness_lower_crust*1.0e-3} km")
-print(f"\tnon cratonic mantle lithosphere: {thickness_litho/1000} km")
-if(sediments==True):
-    print(f"\tcrust: {(thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust)/1000} km")
-else:
-    print(f"\tcrust: {(thickness_upper_crust + thickness_lower_crust)/1000} km")
-print(f"\tnon cratonic lithosphere: {thickness_litho*1.0e-3} km")
-print('Important scale factors (C):')
-print(f"\tair: {air.effective_viscosity_scale_factor}")
-if(sediments==True):
-    print(f"\tsediments: {sediments.effective_viscosity_scale_factor}")
-    print(f"\tdecolement: {decolement.effective_viscosity_scale_factor}")
-print(f"\tupper crust: {upper_crust.effective_viscosity_scale_factor}")
-print(f"\tlower crust: {lower_crust.effective_viscosity_scale_factor}")
-print(f"\tweak seed: {seed_base.effective_viscosity_scale_factor}")
-print(f"\tnon cratonic mantle lithosphere: {lithospheric_mantle.effective_viscosity_scale_factor}")
-print(f"Preset of initial temperature field: {preset}")
-print(f"Radiogenic heat in lithospheric mantle: {lithospheric_mantle.radiogenic_heat_production}")
-print(f"Surface process: {sp_surface_processes}")
-print(f"Velocity field: {velocity_from_ascii}")
-print(f"Variable velocity field: {variable_bcv}")
-print(f"Climate change: {climate_change_from_ascii}")
-print(f"Periodic Boundary: {periodic_boundary}")
-print('Initial temperature field setup:')
-print(f"\tPreset of initial temperature field: {preset}")
-print(f"\tIncrease in mantle basal temperature (Ta): {DeltaT} oC")
-print(f"\tAssumed mantle Potential Temperature for diffusive model: {TP} oC")
-print(f'magmatism: {magmatism}')
-print(f'rheology model in param file: {rheology_model}')
-
-#Save scenario infos
-scenario_infos = ['SCENARIO INFOS:']
-scenario_infos.append(' ')
-scenario_infos.append('Name: ' + path[-1])
-scenario_infos.append(f"Scenario kind: {experiemnts[scenario_kind]}")
-scenario_infos.append(f"N cores: {ncores}")
-scenario_infos.append(' ')
-scenario_infos.append('Domain parameters:')
-scenario_infos.append(f"\tLx: {Lx*1.0e-3} km")
-scenario_infos.append(f"\tLz: {Lz*1.0e-3} km")
-scenario_infos.append(f"\tNx: {Nx}")
-scenario_infos.append(f"\tNz: {Nz}")
-scenario_infos.append(f"Resolution dx x dz: {1.0e-3*Lx/(Nx-1)} x {1.0e-3*Lz/(Nz-1)} km2")
-scenario_infos.append(' ')
-scenario_infos.append(f'Time limit: {time_max/1.0e6} Myr')
-if(variable_bcv == True):
-    scenario_infos.append(f'Time of rifting1: {dt_rifting1} Myr')
-    scenario_infos.append(f"Time of quiescence after rifting: {dt_quiescence1} Myr")
-    scenario_infos.append(f"Time of quiescence after orogeny: {dt_quiescence2} Myr")
-    scenario_infos.append(' ')
-scenario_infos.append(f'Total time: {time_max/1.0e6} Myr')
-scenario_infos.append('Layers thickness:')
-scenario_infos.append(f"\tair: {thickness_air*1.0e-3} km")
-if(sediments==True):
-    scenario_infos.append(f"\tsediments: {thickness_sed/1000} km")
-    scenario_infos.append(f"\tdecolement: {thickness_decolement/1000} km")
-scenario_infos.append(f"\tupper crust: {thickness_upper_crust*1.0e-3} km")
-scenario_infos.append(f"\tlower crust: {thickness_lower_crust*1.0e-3} km")
-scenario_infos.append(f"\tnon cratonic mantle lithosphere:{ thickness_litho} km")
-if(sediments==True):
-    scenario_infos.append(f"\tcrust: {(thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust)/1000}")
-else:
-    scenario_infos.append(f"\tcrust: {(thickness_upper_crust + thickness_lower_crust)/1000}")
-scenario_infos.append(f"\tnon cratonic lithosphere: {thickness_litho*1.0e-3} km")
-scenario_infos.append(' ')
-scenario_infos.append(' ')
-scenario_infos.append('Important scale factors (C):')
-scenario_infos.append(f"\tair: {air.effective_viscosity_scale_factor}")
-if(sediments==True):
-    scenario_infos.append(f"\tsediments: {sediments.effective_viscosity_scale_factor}")
-    scenario_infos.append(f"\tdecolement: {decolement.effective_viscosity_scale_factor}")
-scenario_infos.append(f"\tupper crust: {upper_crust.effective_viscosity_scale_factor}")
-scenario_infos.append(f"\tlower crust: {lower_crust.effective_viscosity_scale_factor}")
-scenario_infos.append(f"\tweak seed: {seed_base.effective_viscosity_scale_factor}")
-scenario_infos.append(f"\tnon cratonic mantle lithosphere: {lithospheric_mantle.effective_viscosity_scale_factor}")
-scenario_infos.append(' ')
-scenario_infos.append(f"Preset of initial temperature field: {preset}")
-scenario_infos.append(f"Radiogenic heat in lithospheric mantle: {lithospheric_mantle.radiogenic_heat_production}")
-scenario_infos.append(f"Surface process: {sp_surface_processes}")
-scenario_infos.append(f"Velocity field: {velocity_from_ascii}")
-if(velocity_from_ascii==True):
-    scenario_infos.append(f"inital velocity: {vL*(365 * 24 * 3600)*2*100} cm/yr") 
-scenario_infos.append(f"Variable velocity field: {variable_bcv}")
-scenario_infos.append(f"Climate change: {climate_change_from_ascii}")
-scenario_infos.append(f"Periodic Boundary: {periodic_boundary}")
-scenario_infos.append('Initial temperature field setup:')
-scenario_infos.append(f"\tPreset of initial temperature field: {preset}")
-scenario_infos.append(f"\tIncrease in mantle basal temperature (Ta): {DeltaT} oC")
-scenario_infos.append(f"\tAssumed mantle Potential Temperature for diffusive model: {TP} oC")
-scenario_infos.append(' ')
-scenario_infos.append(f'magmatism: {magmatism}')
-scenario_infos.append(f'rheology model in param file: {rheology_model}')
-
-np.savetxt('infos_'+path[-1] + '.txt', scenario_infos, fmt="%s")
-
-##############################################################################
 #Creating run_scripts
 ##############################################################################
 
@@ -1665,16 +1546,17 @@ mac = False#True
 aguia = True
 hypatia = True#False
 
-mandyoc_options = '-seed 0,5,8 -strain_seed 0.0,1.0,1.0'
+mandyoc_options = '-seed 0,2 -strain_seed 0.0,1.0'
 
 if(linux):
+    ncores=12
     run_linux = f'''
             #!/bin/bash
             MPI_PATH=$HOME/opt/petsc/arch-label-optimized/bin
             MANDYOC_PATH=$HOME/opt/mandyoc
             NUMBER_OF_CORES=20
             touch FD.out
-            $MPI_PATH/mpirun -n $NUMBER_OF_CORES $MANDYOC_PATH/mandyoc {mandyoc_options} | tee FD.out
+            $MPI_PATH/mpirun -{ncores} $NUMBER_OF_CORES $MANDYOC_PATH/mandyoc {mandyoc_options} | tee FD.out
         '''
     with open('run-linux.sh', 'w') as f:
         for line in run_linux.split('\n'):
@@ -1683,6 +1565,7 @@ if(linux):
                 f.write(' '.join(line.split()) + '\n')
 
 if(mac):
+    ncores = 12
     dirname = '${PWD##*/}'
     current_dir = '${PWD}'
     # main_folders = '/scratch/jpmacedo'
@@ -1783,6 +1666,15 @@ if(aguia):
                 f.write(' '.join(line.split()) + '\n')
 
 if(hypatia):
+    # ncores=90
+    ncores = 192
+    # ncores = 256
+    # ncores = 384
+    cores_per_node = 96
+
+    #Estimating number of nodes needed according to number of cores
+    nodes = (ncores + cores_per_node - 1) // cores_per_node #ceil division
+
     dirname = '${PWD##*/}'
     current_dir = '${PWD}'
     # main_folders = '/scratch/jpmacedo'
@@ -1798,8 +1690,8 @@ if(hypatia):
     #SBATCH --exclude=f001
     #SBATCH --time 72:00:00 # 16 horas; poderia ser “2-” para 2 dias; máximo “8-”
     #SBATCH --job-name {scenario_name}
-    #SBATCH --output slurm_%j.log
-    #SBATCH --error=log_error_%j.log
+    #SBATCH --output slurm_{scenario_name}_%j.log
+    #SBATCH --error=log_error_{scenario_name}_%j.log
     #SBATCH --no-requeue
 
     module purge
@@ -1921,3 +1813,124 @@ with open('clean.sh', 'w') as f:
 filename = 'inputs_'+path[-1]+'.zip'
 files_list = ' infos*.txt interfaces.txt param.txt input*_0.txt run*.sh vel*.txt scale_bcv.txt *.png precipitation.txt climate.txt zipper.sh clean.sh'
 os.system('zip '+filename+files_list)
+
+
+
+##############################################################################
+# Scenario infos
+##############################################################################
+
+print(f"Scenario kind: {experiemnts[scenario_kind]}")
+print(f"N cores: {ncores}")
+print('Domain parameters:')
+print(f"\tLx: {Lx*1.0e-3} km")
+print(f"\tLz: {Lz*1.0e-3} km")
+print(f"\tNx: {Nx}")
+print(f"\tNz: {Nz}")
+print(f"Resolution dx x dz: {1.0e-3*Lx/(Nx-1)} x {1.0e-3*Lz/(Nz-1)} km2")
+print(f'Time limit: {time_max/1.0e6} Myr')
+if(variable_bcv == True):
+    print(f'Time of rifting1: {dt_rifting1} Myr')
+    print(f"Time of quiescence after rifting: {dt_quiescence1} Myr")
+    print(f"Time of quiescence after orogeny: {dt_quiescence2} Myr")
+print(f'Total time: {time_max/1.0e6} Myr')
+print('Layers thickness:')
+print(f"\tair: {thickness_air*1.0e-3} km")
+if(sediments==True):
+    print(f"\tsediments: {thickness_sed/1000} km")
+    print(f"\tdecolement: {thickness_decolement/1000} km")
+print(f"\tupper crust: {thickness_upper_crust*1.0e-3} km")
+print(f"\tlower crust: {thickness_lower_crust*1.0e-3} km")
+print(f"\tnon cratonic mantle lithosphere: {thickness_litho/1000} km")
+if(sediments==True):
+    print(f"\tcrust: {(thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust)/1000} km")
+else:
+    print(f"\tcrust: {(thickness_upper_crust + thickness_lower_crust)/1000} km")
+print(f"\tnon cratonic lithosphere: {thickness_litho*1.0e-3} km")
+print('Important scale factors (C):')
+print(f"\tair: {air.effective_viscosity_scale_factor}")
+if(sediments==True):
+    print(f"\tsediments: {sediments.effective_viscosity_scale_factor}")
+    print(f"\tdecolement: {decolement.effective_viscosity_scale_factor}")
+print(f"\tupper crust: {upper_crust.effective_viscosity_scale_factor}")
+print(f"\tlower crust: {lower_crust.effective_viscosity_scale_factor}")
+print(f"\tweak seed: {seed_base.effective_viscosity_scale_factor}")
+print(f"\tnon cratonic mantle lithosphere: {lithospheric_mantle.effective_viscosity_scale_factor}")
+print(f"Preset of initial temperature field: {preset}")
+print(f"Radiogenic heat in lithospheric mantle: {lithospheric_mantle.radiogenic_heat_production}")
+print(f"Surface process: {sp_surface_processes}")
+print(f"Velocity field: {velocity_from_ascii}")
+print(f"Variable velocity field: {variable_bcv}")
+print(f"Climate change: {climate_change_from_ascii}")
+print(f"Periodic Boundary: {periodic_boundary}")
+print('Initial temperature field setup:')
+print(f"\tPreset of initial temperature field: {preset}")
+print(f"\tIncrease in mantle basal temperature (Ta): {DeltaT} oC")
+print(f"\tAssumed mantle Potential Temperature for diffusive model: {TP} oC")
+print(f'magmatism: {magmatism}')
+print(f'rheology model in param file: {rheology_model}')
+
+#Save scenario infos
+scenario_infos = ['SCENARIO INFOS:']
+scenario_infos.append(' ')
+scenario_infos.append('Name: ' + path[-1])
+scenario_infos.append(f"Scenario kind: {experiemnts[scenario_kind]}")
+scenario_infos.append(f"N cores: {ncores}")
+scenario_infos.append(' ')
+scenario_infos.append('Domain parameters:')
+scenario_infos.append(f"\tLx: {Lx*1.0e-3} km")
+scenario_infos.append(f"\tLz: {Lz*1.0e-3} km")
+scenario_infos.append(f"\tNx: {Nx}")
+scenario_infos.append(f"\tNz: {Nz}")
+scenario_infos.append(f"Resolution dx x dz: {1.0e-3*Lx/(Nx-1)} x {1.0e-3*Lz/(Nz-1)} km2")
+scenario_infos.append(' ')
+scenario_infos.append(f'Time limit: {time_max/1.0e6} Myr')
+if(variable_bcv == True):
+    scenario_infos.append(f'Time of rifting1: {dt_rifting1} Myr')
+    scenario_infos.append(f"Time of quiescence after rifting: {dt_quiescence1} Myr")
+    scenario_infos.append(f"Time of quiescence after orogeny: {dt_quiescence2} Myr")
+    scenario_infos.append(' ')
+scenario_infos.append(f'Total time: {time_max/1.0e6} Myr')
+scenario_infos.append('Layers thickness:')
+scenario_infos.append(f"\tair: {thickness_air*1.0e-3} km")
+if(sediments==True):
+    scenario_infos.append(f"\tsediments: {thickness_sed/1000} km")
+    scenario_infos.append(f"\tdecolement: {thickness_decolement/1000} km")
+scenario_infos.append(f"\tupper crust: {thickness_upper_crust*1.0e-3} km")
+scenario_infos.append(f"\tlower crust: {thickness_lower_crust*1.0e-3} km")
+scenario_infos.append(f"\tnon cratonic mantle lithosphere:{ thickness_litho} km")
+if(sediments==True):
+    scenario_infos.append(f"\tcrust: {(thickness_sed + thickness_decolement + thickness_upper_crust + thickness_lower_crust)/1000}")
+else:
+    scenario_infos.append(f"\tcrust: {(thickness_upper_crust + thickness_lower_crust)/1000}")
+scenario_infos.append(f"\tnon cratonic lithosphere: {thickness_litho*1.0e-3} km")
+scenario_infos.append(' ')
+scenario_infos.append(' ')
+scenario_infos.append('Important scale factors (C):')
+scenario_infos.append(f"\tair: {air.effective_viscosity_scale_factor}")
+if(sediments==True):
+    scenario_infos.append(f"\tsediments: {sediments.effective_viscosity_scale_factor}")
+    scenario_infos.append(f"\tdecolement: {decolement.effective_viscosity_scale_factor}")
+scenario_infos.append(f"\tupper crust: {upper_crust.effective_viscosity_scale_factor}")
+scenario_infos.append(f"\tlower crust: {lower_crust.effective_viscosity_scale_factor}")
+scenario_infos.append(f"\tweak seed: {seed_base.effective_viscosity_scale_factor}")
+scenario_infos.append(f"\tnon cratonic mantle lithosphere: {lithospheric_mantle.effective_viscosity_scale_factor}")
+scenario_infos.append(' ')
+scenario_infos.append(f"Preset of initial temperature field: {preset}")
+scenario_infos.append(f"Radiogenic heat in lithospheric mantle: {lithospheric_mantle.radiogenic_heat_production}")
+scenario_infos.append(f"Surface process: {sp_surface_processes}")
+scenario_infos.append(f"Velocity field: {velocity_from_ascii}")
+if(velocity_from_ascii==True):
+    scenario_infos.append(f"inital velocity: {vL*(365 * 24 * 3600)*2*100} cm/yr") 
+scenario_infos.append(f"Variable velocity field: {variable_bcv}")
+scenario_infos.append(f"Climate change: {climate_change_from_ascii}")
+scenario_infos.append(f"Periodic Boundary: {periodic_boundary}")
+scenario_infos.append('Initial temperature field setup:')
+scenario_infos.append(f"\tPreset of initial temperature field: {preset}")
+scenario_infos.append(f"\tIncrease in mantle basal temperature (Ta): {DeltaT} oC")
+scenario_infos.append(f"\tAssumed mantle Potential Temperature for diffusive model: {TP} oC")
+scenario_infos.append(' ')
+scenario_infos.append(f'magmatism: {magmatism}')
+scenario_infos.append(f'rheology model in param file: {rheology_model}')
+
+np.savetxt('infos_'+path[-1] + '.txt', scenario_infos, fmt="%s")
