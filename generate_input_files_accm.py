@@ -297,11 +297,12 @@ if(crameri_colors):
 #Setting the kind of tectonic scenario and number of cores
 ###############################################################################################################################################
 # scenario_name = 'AR8'
+scenario_name = 'AR15'
 # scenario_name = 'AR20'
 # scenario_name = 'AR25'
 # scenario_name = 'AR50'
 # scenario_name = 'AR100'
-scenario_name = 'AR150'
+# scenario_name = 'AR150'
 
 scenario_kind = 'accordion'
 
@@ -385,6 +386,8 @@ if(variable_bcv == True):
     #first rifting phase
     if(scenario_name == 'AR8'):
         dt_rifting1 = 8.0
+    if(scenario_name == 'AR15'):
+            dt_rifting1 = 15.0
     if(scenario_name == 'AR20'):
         dt_rifting1 = 20.0
     if(scenario_name == 'AR25'):
@@ -738,6 +741,11 @@ print_step_files                    = {print_step_files}          # default is T
 checkered                           = {checkered}         # Print one element in the print_step_files (default is False [True/False])
 geoq                                = on            # ok
 geoq_fac                            = 100.0           # ok
+# HDF5
+output_hdf5 = True
+# Snapshot
+snapshot_interval = 1.0e5
+snapshot_files = 2
 # Physical parameters
 temperature_difference              = 1500.         # ok
 thermal_expansion_coefficient       = 3.28e-5       # ok
@@ -1666,8 +1674,8 @@ if(aguia):
                 f.write(' '.join(line.split()) + '\n')
 
 if(hypatia):
-    # ncores=90
-    ncores = 192
+    ncores=96
+    # ncores = 192
     # ncores = 256
     # ncores = 384
     cores_per_node = 96
