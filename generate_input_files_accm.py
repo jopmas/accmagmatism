@@ -297,12 +297,12 @@ if(crameri_colors):
 #Setting the kind of tectonic scenario and number of cores
 ###############################################################################################################################################
 # scenario_name = 'AR8'
-scenario_name = 'AR15'
+# scenario_name = 'AR15'
 # scenario_name = 'AR20'
 # scenario_name = 'AR25'
 # scenario_name = 'AR50'
 # scenario_name = 'AR100'
-# scenario_name = 'AR150'
+scenario_name = 'AR150'
 
 scenario_kind = 'accordion'
 
@@ -1550,7 +1550,7 @@ plt.close()
 ##############################################################################
 
 linux = False
-mac = False#True
+mac = False #True
 aguia = True
 hypatia = True#False
 
@@ -1709,7 +1709,7 @@ if(hypatia):
 
     #Setup of Mandyoc variables:
     PETSC_DIR='{main_folders}/opt/petsc'
-    PETSC_ARCH='optimized-v3.24.1-mpich'
+    PETSC_ARCH='optimized-v3.24.1-openmpi'
 
     MANDYOC='{main_folders}/opt/mandyoc/bin/mandyoc'
     MANDYOC_OPTIONS='{mandyoc_options}'
@@ -1717,20 +1717,20 @@ if(hypatia):
     #run mandyoc
     mpirun -n ${{SLURM_NTASKS}} --map-by :OVERSUBSCRIBE ${{MANDYOC}} ${{MANDYOC_OPTIONS}}
 
-    # conda activate mpy
-    #Creating directories for the output files
-    bash zipper.sh
-    bash /home/jpmacedo/opt/mv-updated.sh
+    # # conda activate mpy
+    # #Creating directories for the output files
+    # bash zipper.sh
+    # bash /home/jpmacedo/opt/mv-updated.sh
     
-    #Creating netdf files
-    julia -t {str(int(ncores))} /home/jpmacedo/opt/convertNETCDF_v2.jl {current_dir}
-    julia -t {str(int(ncores))} /home/jpmacedo/opt/LithoNETCDF_v2.jl {current_dir}
+    # #Creating netdf files
+    # julia -t {str(int(ncores))} /home/jpmacedo/opt/convertNETCDF_v2.jl {current_dir}
+    # julia -t {str(int(ncores))} /home/jpmacedo/opt/LithoNETCDF_v2.jl {current_dir}
 
-    zip {dirname}.zip *.nc
+    zip {dirname}.zip *.hdf5
 
     #run of auxiliary scripts to zip and clean the folder
     
-    bash clean.sh
+    # bash clean.sh
     '''
     with open('run_hypatia.sh', 'w') as f:
         for line in run_hypatia.split('\n'):
@@ -1739,6 +1739,42 @@ if(hypatia):
                 f.write(' '.join(line.split()) + '\n')
 
 
+# zipper = f'''
+#         #!/usr/bin/env bash
+#         DIRNAME={dirname}
+
+#         # Primeiro zipa os arquivos fixos
+#         zip "$DIRNAME.zip" interfaces.txt param.txt input*_0.txt vel_bc.txt velz_bc.txt run*.sh
+
+#         # Lista de padrões
+#         patterns=(
+#             "bc_velocity_*.txt"
+#             "density_*.txt"
+#             "heat_*.txt"
+#             "pressure_*.txt"
+#             "surface*.txt"
+#             "litho*.txt"
+#             "strain_*.txt"
+#             "temperature_*.txt"
+#             "time_*.txt"
+#             "velocity_*.txt"
+#             "viscosity_*.txt"
+#             "scale_bcv.txt"
+#             "step*.txt"
+#             "Phi*.txt"
+#             "dPhi*.txt"
+#             "X_depletion*.txt"
+#             "*.bin*.txt"
+#             "bc*-1.txt"
+#             "*.log"
+#             # "_*.nc"
+#             )
+
+#         # Faz um loop e usa find para evitar o erro "argument list too long"
+#         for pat in "${{patterns[@]}}"; do
+#             find . -maxdepth 1 -type f -name "$pat" -exec zip -u -r "$DIRNAME.zip" {{}} +
+#         done
+#     '''
 zipper = f'''
         #!/usr/bin/env bash
         DIRNAME={dirname}
@@ -1749,21 +1785,22 @@ zipper = f'''
         # Lista de padrões
         patterns=(
             "bc_velocity_*.txt"
-            "density_*.txt"
-            "heat_*.txt"
-            "pressure_*.txt"
-            "surface*.txt"
-            "litho*.txt"
-            "strain_*.txt"
-            "temperature_*.txt"
-            "time_*.txt"
-            "velocity_*.txt"
-            "viscosity_*.txt"
+            "density"
+            "heat"
+            "pressure"
+            "surface"
+            "lithos"
+            "strain"
+            "strain_rate"
+            "temperature"
+            "time"
+            "velocity"
+            "viscosity"
             "scale_bcv.txt"
-            "step*.txt"
-            "Phi*.txt"
-            "dPhi*.txt"
-            "X_depletion*.txt"
+            "steps"
+            "Phi"
+            "dPhi"
+            "X_depletion"
             "*.bin*.txt"
             "bc*-1.txt"
             "*.log"
@@ -1772,7 +1809,7 @@ zipper = f'''
 
         # Faz um loop e usa find para evitar o erro "argument list too long"
         for pat in "${{patterns[@]}}"; do
-            find . -maxdepth 1 -type f -name "$pat" -exec zip -u "$DIRNAME.zip" {{}} +
+            find . -maxdepth 1 -type f -name "$pat" -exec zip -u -r "$DIRNAME.zip" {{}} +
         done
     '''
 with open('zipper.sh', 'w') as f:
