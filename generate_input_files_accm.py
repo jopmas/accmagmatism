@@ -297,12 +297,12 @@ if(crameri_colors):
 #Setting the kind of tectonic scenario and number of cores
 ###############################################################################################################################################
 # scenario_name = 'AR8'
-# scenario_name = 'AR15'
+scenario_name = 'AR15'
 # scenario_name = 'AR20'
 # scenario_name = 'AR25'
 # scenario_name = 'AR50'
 # scenario_name = 'AR100'
-scenario_name = 'AR150'
+# scenario_name = 'AR150'
 
 scenario_kind = 'accordion'
 
@@ -640,15 +640,26 @@ if(seed_in_litho):
         - thickness_seed // 2
     )
 
+    upper_lithospheric_mantle = MandyocLayer('lithospheric mantle', DryOlivine,
+                                                density=3354.0,
+                                                effective_viscosity_scale_factor=0.25,
+                                                radiogenic_heat_production=9.0e-12,
+                                                base_depth=thickness_air+thickness_upper_crust+thickness_lower_crust+seed_depth,
+                                                Nx=Nx)
+
     if(sediments==True):
-        layers = [asthenosphere, lithospheric_mantle, seed_base, seed_top, lower_crust, upper_crust, decolement, sediments, basalt, air]
+        layers = [asthenosphere, lithospheric_mantle, seed_base, upper_lithospheric_mantle, lower_crust, upper_crust, decolement, sediments, basalt, air]
+        interfaces = [asthenosphere, lithospheric_mantle, seed_base, seed_top, lower_crust, upper_crust, decolement, sediments, basalt, air]
     else:
-        layers = [asthenosphere, lithospheric_mantle, seed_base, seed_top, lower_crust, upper_crust, basalt, air]
+        layers = [asthenosphere, lithospheric_mantle, seed_base, upper_lithospheric_mantle, lower_crust, upper_crust, basalt, air]
+        interfaces = [asthenosphere, lithospheric_mantle, seed_base, seed_top, lower_crust, upper_crust, basalt, air]
 else:
     if(sediments==True):
         layers = [asthenosphere, lithospheric_mantle, lower_crust, upper_crust, decolement, sediments, basalt, air]
+        interfaces = [asthenosphere, lithospheric_mantle, lower_crust, upper_crust, decolement, sediments, basalt, air]
     else:
         layers = [asthenosphere, lithospheric_mantle, lower_crust, upper_crust, basalt, air]
+        interfaces = [asthenosphere, lithospheric_mantle, lower_crust, upper_crust, basalt, air]
 
 ##################################################
 # Save interfaces.txt to be used in Mandyoc code #
@@ -675,7 +686,7 @@ with open("interfaces.txt", "w") as f:
             f.write(f"{' '.join(line.split())}\n")
 
     # layer interfaces
-    data = -1 * np.array(tuple(layer.interface for layer in layers[1::])).T #excludin asthenosphere interface
+    data = -1 * np.array(tuple(layer.interface for layer in interfaces[1::])).T #excluding asthenosphere interface
     np.savetxt(f, data, fmt="%.1f")
 
 ##############################################################################
@@ -1550,7 +1561,7 @@ plt.close()
 ##############################################################################
 
 linux = False
-mac = False #True
+mac = True #False #True
 aguia = True
 hypatia = True#False
 
@@ -1573,7 +1584,7 @@ if(linux):
                 f.write(' '.join(line.split()) + '\n')
 
 if(mac):
-    ncores = 12
+    ncores = 14
     dirname = '${PWD##*/}'
     current_dir = '${PWD}'
     # main_folders = '/scratch/jpmacedo'
@@ -1582,7 +1593,7 @@ if(mac):
 
     #Setup of Mandyoc variables:
     PETSC_DIR='{main_folders}/opt/petsc'
-    PETSC_ARCH='optimized-v3.24.1-mpich'
+    PETSC_ARCH='arch-v3.24.6-optimized'
 
     MANDYOC='{main_folders}/opt/mandyoc/bin/mandyoc'
     MANDYOC_OPTIONS='{mandyoc_options}'
@@ -1590,20 +1601,20 @@ if(mac):
     #run mandyoc
     ${{PETSC_DIR}}/${{PETSC_ARCH}}/bin/mpirun -n {ncores} ${{MANDYOC}} ${{MANDYOC_OPTIONS}}
 
-    conda activate mpy
-    #Creating directories for the output files
-    bash {main_folders}/opt/mv-updated.sh
+    # conda activate mpy
+    # #Creating directories for the output files
+    # bash {main_folders}/opt/mv-updated.sh
 
-    #Creating netdf files
-    julia -t {str(int(ncores))} {main_folders}/opt/convertNETCDF_v2.jl {current_dir}
-    julia -t {str(int(ncores))} {main_folders}/opt/LithoNETCDF_v2.jl {current_dir}
+    # #Creating netdf files
+    # julia -t {str(int(ncores))} {main_folders}/opt/convertNETCDF_v2.jl {current_dir}
+    # julia -t {str(int(ncores))} {main_folders}/opt/LithoNETCDF_v2.jl {current_dir}
 
-    # python {main_folders}/opt/track_particles_v3.py {current_dir} 0
-    zip {dirname}.zip *.nc
+    # # python {main_folders}/opt/track_particles_v3.py {current_dir} 0
+    # zip {dirname}.zip *.nc
 
-    #run of auxiliary scripts to zip and clean the folder
-    bash zipper.sh
-    # bash clean.sh
+    # #run of auxiliary scripts to zip and clean the folder
+    # bash zipper.sh
+    # # bash clean.sh
     '''
 
     with open('run_mac.sh', 'w') as f:
